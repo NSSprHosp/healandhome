@@ -342,15 +342,17 @@
 
     <script>
         // ==========================================
-        // 1. การเชื่อมต่อ SUPABASE
+        // 1. การเชื่อมต่อ SUPABASE (แก้ไขปัญหา redeclaration)
         // ==========================================
         const SUPABASE_URL = 'https://jitmktdjpffzyjdximpr.supabase.co'; // เปลี่ยนเป็น URL ของคุณ
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppdG1rdGRqcGZmenlqZHhpbXByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2MTQ2NTQsImV4cCI6MjA5MzE5MDY1NH0.4QvZGWuCba6MgKIhvI26YH9nJfI9CbGY3OWbiiOFNgU'; // เปลี่ยนเป็น Anon Key ของคุณ
         
-        // กำหนดให้ระบบสามารถรันได้แม้ยังไม่เชื่อมต่อ (สำหรับดูโครงสร้าง UI)
-        let supabase;
+        // ใช้ window.mySupabase แทนการประกาศ const/let ระดับ Global เพื่อป้องกัน redeclaration error
+        window.mySupabase = null;
         try {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            if (window.supabase) {
+                 window.mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            }
         } catch(e) {
             console.warn("Supabase client not initialized properly. Check URL and Key.");
         }
@@ -375,10 +377,13 @@
             const pass = document.getElementById('password').value;
             showLoader();
 
-            if (!supabase) {
+            if (!window.mySupabase) {
                 // Mock Login สำหรับ Preview
-                if(user === 'admin' && pass === '1234') {
-                    currentUser = { username: 'admin', role: 'superadmin' };
+                if(user === 'admin' && pass === 'admin') {
+                    currentUser = { username: 'admin', role: 'admin' };
+                    proceedToApp();
+                } else if (user === 'superadmin' && pass === 'super') {
+                    currentUser = { username: 'superadmin', role: 'superadmin' };
                     proceedToApp();
                 } else {
                     Swal.fire('ผิดพลาด', 'Username/Password ไม่ถูกต้อง (Mock)', 'error');
@@ -388,8 +393,8 @@
             }
 
             try {
-                // ดึงข้อมูลจากตาราง app_users ที่เราสร้างเอง (จำลองจาก Google Sheet เดิม)
-                const { data, error } = await supabase
+                // ดึงข้อมูลจากตาราง app_users ที่เราสร้างเอง
+                const { data, error } = await window.mySupabase
                     .from('app_users')
                     .select('*')
                     .eq('username', user)
@@ -433,7 +438,7 @@
         // ==========================================
         async function loadDataFromSupabase() {
             showLoader();
-            if(!supabase) {
+            if(!window.mySupabase) {
                 // Mock Data
                 allPatients = [{id: 1, data: {'ชื่อ-สกุล': 'นายทดสอบ ระบบ', 'อายุ': 45, 'HN': '123456', 'สถานะ': true}}];
                 renderPatientsTable(allPatients);
@@ -442,11 +447,11 @@
             }
 
             // โหลด Patients
-            const { data: pData } = await supabase.from('patients').select('*').order('id', { ascending: false });
+            const { data: pData } = await window.mySupabase.from('patients').select('*').order('id', { ascending: false });
             allPatients = pData ? pData.map(p => ({ id: p.id, ...p.patient_data })) : [];
             
             // โหลด Settings
-            const { data: sData } = await supabase.from('settings').select('*');
+            const { data: sData } = await window.mySupabase.from('settings').select('*');
             if(sData) sData.forEach(s => systemSettings[s.setting_key] = s.setting_value);
 
             renderPatientsTable(allPatients);
@@ -466,7 +471,7 @@
             patientData['สถานะ'] = document.getElementById('status').checked;
 
             showLoader();
-            if(!supabase) {
+            if(!window.mySupabase) {
                 Swal.fire('Success', 'บันทึกสำเร็จ (Mock)', 'success');
                 showView('listView');
                 hideLoader();
@@ -475,11 +480,11 @@
 
             if(recordId) {
                 // อัปเดต
-                const { error } = await supabase.from('patients').update({ patient_data: patientData, updated_at: new Date() }).eq('id', recordId);
+                const { error } = await window.mySupabase.from('patients').update({ patient_data: patientData, updated_at: new Date() }).eq('id', recordId);
                 if(!error) Swal.fire('สำเร็จ', 'อัปเดตข้อมูลสำเร็จ', 'success');
             } else {
                 // เพิ่มใหม่
-                const { error } = await supabase.from('patients').insert([{ patient_data: patientData }]);
+                const { error } = await window.mySupabase.from('patients').insert([{ patient_data: patientData }]);
                 if(!error) Swal.fire('สำเร็จ', 'เพิ่มข้อมูลใหม่สำเร็จ', 'success');
             }
             
@@ -490,7 +495,7 @@
 
         async function deletePatient(id) {
             if(!confirm('คุณแน่ใจว่าต้องการลบผู้ป่วยรายนี้?')) return;
-            if(supabase) await supabase.from('patients').delete().eq('id', id);
+            if(window.mySupabase) await window.mySupabase.from('patients').delete().eq('id', id);
             await loadDataFromSupabase();
         }
 
@@ -580,16 +585,6 @@
                 return;
             }
 
-            // ในระบบจริง คุณจะวนลูปดึงข้อมูลและส่ง API
-            // ตัวอย่างการยิง API ตรงเข้า Telegram:
-            /*
-            const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-            await fetch(url, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ chat_id: systemSettings['TELEGRAM_CHAT_ID'], text: "เทสส่งข้อความ", parse_mode: 'HTML' })
-            });
-            */
             Swal.fire('จำลองการทำงาน', 'ระบบส่งข้อความผ่าน Telegram ทำงานสำเร็จ', 'success');
         }
 
