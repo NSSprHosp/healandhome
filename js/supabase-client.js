@@ -109,13 +109,15 @@ const supabaseClient = {
 
     async getSheetData() {
         try {
-            const { data, error } = await supabase
+            const { data: rawPatients, error } = await supabase
                 .from('patients')
                 .select('*')
-                .order('ID', { ascending: false });
-            
+                .order('ID', { ascending: true });
+
             if (error) throw error;
-            return data;
+            
+            this.initKeyMaps();
+            return rawPatients.map(row => this.restoreLongKeys(row));
         } catch (err) {
             return { error: err.message };
         }
@@ -123,6 +125,7 @@ const supabaseClient = {
 
     async getRecordById(id) {
         try {
+            this.initKeyMaps();
             const { data, error } = await supabase
                 .from('patients')
                 .select('*')
@@ -130,7 +133,7 @@ const supabaseClient = {
                 .single();
             
             if (error) throw error;
-            return data;
+            return this.restoreLongKeys(data);
         } catch (err) {
             return { error: err.message };
         }
@@ -141,9 +144,11 @@ const supabaseClient = {
             // Remove calculated/empty fields if necessary
             delete record.ID;
             
+            this.initKeyMaps();
+            const pgRecord = this.convertToPgKeys(record);
             const { data, error } = await supabase
                 .from('patients')
-                .insert([record])
+                .insert([pgRecord])
                 .select()
                 .single();
             
@@ -158,11 +163,13 @@ const supabaseClient = {
         try {
             if (!record.ID) throw new Error("ID is required for updating");
             
+            this.initKeyMaps();
             const { ID, ...updateData } = record;
+            const pgUpdateData = this.convertToPgKeys(updateData);
             
             const { error } = await supabase
                 .from('patients')
-                .update(updateData)
+                .update(pgUpdateData)
                 .eq('ID', ID);
             
             if (error) throw error;
@@ -471,6 +478,61 @@ const supabaseClient = {
             console.warn('Edge function failed/not deployed. Mocking success.', err);
             return { success: true, sent: 0, errors: ['ไม่สามารถเรียก Edge Function ได้ (กำลังจำลองการทำงาน)'] };
         }
+    },
+
+    // Utility to handle Postgres 63-byte truncation for long Thai column names
+    PG_TO_LONG_KEY_MAP: {},
+    LONG_TO_PG_KEY_MAP: {},
+
+    initKeyMaps() {
+        if (Object.keys(this.PG_TO_LONG_KEY_MAP).length > 0) return;
+        const getPgColumnName = (colName) => {
+            const encoder = new TextEncoder();
+            const bytes = encoder.encode(colName);
+            if (bytes.length <= 63) return colName;
+            let truncated = bytes.slice(0, 63);
+            const decoder = new TextDecoder('utf-8', { fatal: false });
+            let str = decoder.decode(truncated);
+            while (str.includes('\uFFFD')) {
+                truncated = truncated.slice(0, -1);
+                str = decoder.decode(truncated);
+            }
+            return str;
+        };
+        const LONG_KEYS = [
+            'ติดตามครบ1วัน_ผู้ติดตาม', 'ติดตามครบ2วัน_ผู้ติดตาม', 'ติดตามครบ3วัน_ผู้ติดตาม', 
+            'ติดตามครบ7วัน_ผู้ติดตาม', 'ติดตามครบ14วัน_ผู้ติดตาม', 'ติดตามครบ28วัน_ผู้ติดตาม', 
+            'ติดตามครบ90วัน_ผู้ติดตาม', 'รายงานแพทย์_วันที่ติดตาม', 
+            'ติดตามพิเศษ1_วันครบกำหนด', 'ติดตามพิเศษ2_วันครบกำหนด', 'ติดตามพิเศษ3_วันครบกำหนด', 
+            'ติดตามพิเศษ4_วันครบกำหนด', 'ติดตามพิเศษ5_วันครบกำหนด'
+        ];
+        LONG_KEYS.forEach(longKey => {
+            const pgKey = getPgColumnName(longKey);
+            if (pgKey !== longKey) {
+                this.PG_TO_LONG_KEY_MAP[pgKey] = longKey;
+                this.LONG_TO_PG_KEY_MAP[longKey] = pgKey;
+            }
+        });
+    },
+
+    restoreLongKeys(row) {
+        if (!row) return row;
+        const restored = {};
+        for (let k in row) {
+            const longKey = this.PG_TO_LONG_KEY_MAP[k] || k;
+            restored[longKey] = row[k];
+        }
+        return restored;
+    },
+
+    convertToPgKeys(row) {
+        if (!row) return row;
+        const converted = {};
+        for (let k in row) {
+            const pgKey = this.LONG_TO_PG_KEY_MAP[k] || k;
+            converted[pgKey] = row[k];
+        }
+        return converted;
     }
 };
 
