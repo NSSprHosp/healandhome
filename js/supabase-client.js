@@ -20,7 +20,16 @@ const supabaseClient = {
                 .eq('username', username)
                 .single();
             
-            if (error || !data) return { success: false, message: 'ชื่อผู้ใช้ หรือ รหัสผ่าน ไม่ถูกต้อง' };
+            if (error) {
+                console.error("Supabase Login Error:", error);
+                // PGRST116 means 0 rows returned (User not found)
+                if (error.code !== 'PGRST116') {
+                    return { success: false, message: `ข้อผิดพลาดฐานข้อมูล: ${error.message} (Code: ${error.code})` };
+                }
+                return { success: false, message: 'ชื่อผู้ใช้ หรือ รหัสผ่าน ไม่ถูกต้อง' };
+            }
+            
+            if (!data) return { success: false, message: 'ชื่อผู้ใช้ หรือ รหัสผ่าน ไม่ถูกต้อง' };
             
             // Simple password check (in production, use bcrypt or Supabase Auth)
             if (data.password !== password) return { success: false, message: 'ชื่อผู้ใช้ หรือ รหัสผ่าน ไม่ถูกต้อง' };
