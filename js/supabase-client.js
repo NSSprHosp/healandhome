@@ -5,6 +5,7 @@
  */
 
 // Initialize Supabase Client
+(() => {
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const supabaseClient = {
@@ -509,3 +510,7 @@ const google = {
         })
     }
 };
+
+window.supabaseClient = supabaseClient;
+window.google = google;
+})();
