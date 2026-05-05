@@ -17,12 +17,19 @@ $(document).ready(function() {
         {
             sheetName: 'Users',
             tableName: 'users',
-            mapFunction: (row) => ({
-                username: row.Username || row.username || row['ชื่อผู้ใช้'] || null,
-                password: String(row.Password || row.password || row['รหัสผ่าน'] || ''),
-                name: row.Name || row.name || row['ชื่อ-สกุล'] || null,
-                role: (row.Role || row.role || row['สิทธิ์'] || 'viewer').toLowerCase()
-            })
+            mapFunction: (row) => {
+                let rawRole = String(row.Role || row.role || row['สิทธิ์'] || 'viewer').trim().toLowerCase();
+                let finalRole = 'viewer';
+                if (rawRole.includes('super')) finalRole = 'superadmin';
+                else if (rawRole.includes('admin')) finalRole = 'admin';
+                
+                return {
+                    username: row.Username || row.username || row['ชื่อผู้ใช้'] || null,
+                    password: String(row.Password || row.password || row['รหัสผ่าน'] || ''),
+                    name: row.Name || row.name || row['ชื่อ-สกุล'] || null,
+                    role: finalRole
+                };
+            }
         },
         {
             sheetName: 'setting',
@@ -55,7 +62,7 @@ $(document).ready(function() {
                     'ผู้ติดตามล่าสุด'
                 ];
                 for (let k in row) {
-                    const cleanKey = k.trim();
+                    const cleanKey = k.replace(/[\r\n\t\u200B-\u200D\uFEFF]/g, '').trim();
                     if (cleanKey !== '' && !excludeCols.includes(cleanKey)) { // Skip ID and calculated summary columns
                         let val = row[k];
                         if (val === '' || val === undefined || val === null) {
