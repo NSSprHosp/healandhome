@@ -204,14 +204,15 @@ const supabaseClient = {
     async getPatientsDueFor28DayFollowUp() {
         // Returns all active or deceased patients
         try {
-            const { data, error } = await supabase
+            this.initKeyMaps();
+            const { data, error } = await supabaseDb
                 .from('patients')
                 .select('*')
-                .or('สถานะ.eq.true,ผู้ป่วยเสียชีวิต.eq.true')
-                .order('วันที่กลับบ้าน', { ascending: false });
+                .or('"สถานะ".eq.true,"ผู้ป่วยเสียชีวิต".eq.true')
+                .order('"วันที่กลับบ้าน"', { ascending: false });
             
             if (error) throw error;
-            return data;
+            return data.map(row => this.restoreLongKeys(row));
         } catch (err) {
             return { error: err.message };
         }
