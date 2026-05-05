@@ -55,7 +55,8 @@ $(document).ready(function() {
                     'ผู้ติดตามล่าสุด'
                 ];
                 for (let k in row) {
-                    if (k.trim() !== '' && !excludeCols.includes(k.trim())) { // Skip ID and calculated summary columns
+                    const cleanKey = k.trim();
+                    if (cleanKey !== '' && !excludeCols.includes(cleanKey)) { // Skip ID and calculated summary columns
                         let val = row[k];
                         if (val === '' || val === undefined || val === null) {
                             val = null;
@@ -66,7 +67,7 @@ $(document).ready(function() {
                             if (val === 'TRUE' || val === 'true') val = true;
                             if (val === 'FALSE' || val === 'false') val = false;
                         }
-                        mapped[k] = val;
+                        mapped[cleanKey] = val;
                     }
                 }
                 return mapped;
