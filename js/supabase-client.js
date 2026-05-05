@@ -475,37 +475,51 @@ const supabaseClient = {
 };
 
 // Polyfill google.script.run for backward compatibility
+function createGoogleScriptRunner() {
+    let successHandler = null;
+    let failureHandler = null;
+    let userObject = null;
+
+    const runner = new Proxy({}, {
+        get: function(target, prop) {
+            if (prop === 'withSuccessHandler') {
+                return function(cb) { successHandler = cb; return runner; };
+            }
+            if (prop === 'withFailureHandler') {
+                return function(cb) { failureHandler = cb; return runner; };
+            }
+            if (prop === 'withUserObject') {
+                return function(obj) { userObject = obj; return runner; };
+            }
+
+            // Execute the server function
+            return function(...args) {
+                (async () => {
+                    try {
+                        console.log(`[Supabase Bridge] Calling ${prop}`, args);
+                        if (typeof supabaseClient[prop] !== 'function') {
+                            throw new Error(`Function ${prop} not implemented in Supabase client`);
+                        }
+                        
+                        const result = await supabaseClient[prop](...args);
+                        if (successHandler) successHandler(result, userObject);
+                    } catch (err) {
+                        console.error(`[Supabase Bridge] Error in ${prop}:`, err);
+                        if (failureHandler) failureHandler(err, userObject);
+                    }
+                })();
+            };
+        }
+    });
+
+    return runner;
+}
+
 const google = {
     script: {
         run: new Proxy({}, {
             get: function(target, prop) {
-                return function(...args) {
-                    let successHandler = null;
-                    let failureHandler = null;
-
-                    const runner = {
-                        withSuccessHandler: function(cb) { successHandler = cb; return runner; },
-                        withFailureHandler: function(cb) { failureHandler = cb; return runner; }
-                    };
-
-                    // Add the actual server function dynamically
-                    runner[prop] = async function(...serverArgs) {
-                        try {
-                            console.log(`[Supabase Bridge] Calling ${prop}`, serverArgs);
-                            if (typeof supabaseClient[prop] !== 'function') {
-                                throw new Error(`Function ${prop} not implemented in Supabase client`);
-                            }
-                            
-                            const result = await supabaseClient[prop](...serverArgs);
-                            if (successHandler) successHandler(result);
-                        } catch (err) {
-                            console.error(`[Supabase Bridge] Error in ${prop}:`, err);
-                            if (failureHandler) failureHandler(err);
-                        }
-                    };
-
-                    return runner;
-                };
+                return createGoogleScriptRunner()[prop];
             }
         })
     }
