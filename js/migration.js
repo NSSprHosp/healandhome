@@ -94,7 +94,20 @@ $(document).ready(function() {
                             val = null;
                         } else {
                             if (val === 'TRUE' || val === 'true') val = true;
-                            if (val === 'FALSE' || val === 'false') val = false;
+                            else if (val === 'FALSE' || val === 'false') val = false;
+                            else if (typeof val === 'string') {
+                                // Convert DD/MM/YYYY or DD-MM-YYYY to YYYY-MM-DD
+                                const dateMatch = val.trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(.*))?$/);
+                                if (dateMatch) {
+                                    const day = dateMatch[1].padStart(2, '0');
+                                    const month = dateMatch[2].padStart(2, '0');
+                                    let year = parseInt(dateMatch[3], 10);
+                                    // Handle Thai Buddhist Era years if present
+                                    if (year > 2400) year -= 543;
+                                    const time = dateMatch[4] ? ` ${dateMatch[4]}` : '';
+                                    val = `${year}-${month}-${day}${time}`;
+                                }
+                            }
                         }
                         mapped[pgKey] = val;
                     }
