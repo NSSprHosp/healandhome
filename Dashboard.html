@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - ระบบติดตามเยี่ยมผู้ป่วย</title>
+    
+    <!-- CSS Libraries -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* [NEW 9.1] Custom list group item for comments */
+        #db-recent-comments .list-group-item {
+             border-bottom: 1px dashed #eee !important;
+             padding: 0.5rem 0.25rem;
+             background-color: transparent;
+        }
+        #db-recent-comments .list-group-item:last-child {
+            border-bottom: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loader -->
+    <div id="loader" class="loader-overlay" style="display: flex;">
+        <div class="spinner-border text-success" role="status">
+            <span class="sr-only">กำลังโหลด...</span>
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top" style="background-color: #FFEFF2;">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-tachometer-alt"></i> Dashboard - ระบบติดตามเยี่ยมผู้ป่วย Heal&amp;Home
+            </a>
+            <!-- <ul class="navbar-nav ml-auto">
+                 <li class="nav-item">
+                     <a class="btn btn-outline-success" href="<?= ScriptApp.getService().getUrl(); ?>" target="_blank" rel="noopener noreferrer">
+                        <i class="fas fa-arrow-left"></i> กลับหน้าหลัก
+                    </a>
+                </li>
+            </ul> -->
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid main-content">
+        <!-- Dashboard View (id="dashboardView" is kept for consistency) -->
+        <div id="dashboardView">
+            <h4 class="mb-3 section-title">Dashboard ภาพรวมระบบ</h4>
+            
+            <!-- [NEW] Global Fiscal Year Filter -->
+            <div class="row mb-3">
+                <div class="col-md-4 col-lg-3">
+                    <div class="form-group d-flex align-items-center mb-0">
+                        <label for="globalFiscalYearFilter" class="mr-2 mb-0" style="font-weight: 500; white-space: nowrap;">ปีงบประมาณ:</label>
+                        <select id="globalFiscalYearFilter" class="form-control form-control-sm">
+                            <option value="All">กำลังโหลด...</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 1. Main Overview -->
+            <h5 class="mt-4"><i class="fas fa-chart-pie text-primary"></i> 1. ภาพรวมหลัก (Main Overview)</h5>
+            <div class="row">
+                <div class="col-lg-2 col-md-4 col-6 mb-3">
+                    <div class="dashboard-card shadow-sm text-primary">
+                        <i class="fas fa-users fa-2x"></i>
+                        <h5 id="db-total-patients">...</h5>
+                        <p>ผู้ป่วยทั้งหมด</p>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-6 mb-3">
+                    <div class="dashboard-card shadow-sm text-success">
+                        <i class="fas fa-user-clock fa-2x"></i>
+                        <h5 id="db-active-followup">...</h5>
+                        <p>กำลังติดตาม</p>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-6 mb-3">
+                    <div class="dashboard-card shadow-sm text-info">
+                        <i class="fas fa-user-check fa-2x"></i>
+                        <h5 id="db-completed-28d">...</h5>
+                        <p>ติดตามครบ 28 วัน</p>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-6 mb-3">
+                    <div class="dashboard-card shadow-sm text-warning">
+                        <i class="fas fa-user-check fa-2x"></i>
+                        <h5 id="db-completed-90d">...</h5>
+                        <p>ติดตามครบ 90 วัน</p>
+                    </div>
+                </div>
+                 <div class="col-lg-2 col-md-4 col-6 mb-3">
+                    <div class="dashboard-card shadow-sm text-dark">
+                        <i class="fas fa-cross fa-2x"></i>
+                        <h5 id="db-deceased">...</h5>
+                        <p>เสียชีวิต</p>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-6 mb-3">
+                    <div class="dashboard-card shadow-sm text-danger">
+                        <i class="fas fa-user-plus fa-2x"></i>
+                        <h5 id="db-new-this-week">...</h5>
+                        <p>ผู้ป่วยใหม่ (สัปดาห์นี้)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Follow-up Status -->
+            <h5 class="mt-4"><i class="fas fa-tasks text-primary"></i> 2. สถานะการติดตาม (Follow-up Status)</h5>
+            <div class="row">
+                <!-- [REMOVED] กราฟผู้ป่วยในแต่ละช่วงการติดตาม (ที่ทำแล้ว) ถูกลบออกจากตรงนี้ -->
+                
+                <!-- กราฟประสิทธิภาพ 28 วัน (คงเดิม) -->
+                <div class="col-lg-6 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body" style="height: 400px;">
+                            <h6>ประสิทธิภาพการติดตาม (สรุป 28 วัน)</h6>
+                            <div class="chart-container">
+                                <canvas id="followUpPerformanceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- [ADDED] กราฟประสิทธิภาพ 90 วัน (ใหม่) -->
+                <div class="col-lg-6 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body" style="height: 400px;">
+                            <h6>ประสิทธิภาพการติดตาม (สรุป 90 วัน)</h6>
+                            <div class="chart-container">
+                                <canvas id="followUpPerformanceChart90Day"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- [MODIFIED] เปลี่ยนตารางเป็น "รายการล่าสุด" -->
+                <div class="col-lg-12 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h6>รายการผู้ป่วยติดตามเยี่ยม ( 5 รายการล่าสุด)</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <!-- [GEMINI] แก้ไขส่วนหัวตาราง -->
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>ชื่อ-สกุล</th>
+                                            <th>การผ่าตัด</th>
+                                            <th>แพทย์</th>
+                                            <th>วันที่เยี่ยม</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="db-latest-visits-list">
+                                        <!-- Data populated by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- [END MODIFIED] -->
+            </div>
+
+            <!-- 3. Patient Insights -->
+            <h5 class="mt-4"><i class="fas fa-user-md text-primary"></i> 3. ข้อมูลเชิงลึกผู้ป่วย (Patient Insights)</h5>
+            <div class="row">
+                <!-- [MOVED] กราฟช่วงอายุ (ใหม่) -->
+                 <div class="col-lg-12 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h6>จำนวนผู้ป่วยแยกตามช่วงอายุ</h6>
+                            <div class="chart-container" style="max-height: 400px;">
+                                <canvas id="ageGroupChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- [FIXED] นำกราฟ Diagnosis ที่หายไปกลับมา -->
+                <div class="col-lg-6 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h6>กลุ่มการวินิจฉัยโรค (Top 10 Diagnosis)</h6>
+                            <div class="chart-container">
+                                <canvas id="diagnosisChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- [END FIXED] -->
+
+                <div class="col-lg-6 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h6>แพทย์ผู้ดูแล (Top 10)</h6>
+                            <div class="chart-container">
+                                <canvas id="doctorChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-12 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h6>การกระจายตัวตามพื้นที่ (Top 15 จังหวัด)</h6>
+                            <div class="chart-container" style="max-height: 400px;">
+                                <canvas id="provinceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- [ADDED] กราฟช่วงอายุ (ใหม่) -->
+                 <!-- [MOVED] This block was moved to the top of section 3 -->
+            </div>
+
+            <!-- 4. Clinical Outcomes -->
+            <h5 class="mt-4"><i class="fas fa-heartbeat text-primary"></i> 4. ผลลัพธ์การดูแล (Clinical Outcomes)</h5>
+             <div class="row">
+                <div class="col-lg-8 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body" style="height: 400px;"> <!-- [MODIFIED v11.2] Adjusted height for 3 cards -->
+                            <h6>การเปลี่ยนแปลงของ Functional Class (ค่าเฉลี่ย)</h6>
+                            <div class="chart-container" style="max-height: 350px;"> <!-- [MODIFIED v11.2] Adjusted max-height -->
+                                <canvas id="fcTrendChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- [MODIFIED v11.2] Updated card section -->
+                <div class="col-lg-4 mb-3">
+                    <!-- [NEW v11.2] Readmission Count Card -->
+                    <div class="dashboard-card shadow-sm text-danger mb-3" style="height: 180px;">
+                        <i class="fas fa-procedures fa-2x"></i>
+                        <h5 id="db-readmission-count">...</h5>
+                        <p>จำนวนผู้ป่วย Readmit</p>
+                    </div>
+                    <!-- [MODIFIED v11.2] Readmission Rate Card (Updated text & icon, adjusted height) -->
+                    <div class="dashboard-card shadow-sm text-danger" style="height: 180px;">
+                        <i class="fas fa-procedures fa-2x"></i>
+                        <h5 id="db-readmission-rate">...</h5>
+                        <p>ร้อยละของผู้ป่วย Readmit</p>
+                    </div>
+                    <!-- [REMOVED BY USER REQUEST] Avg Duration Card -->
+                </div>
+                <!-- [END MODIFIED v11.2] -->
+
+            </div>
+            
+            <!-- [START MODIFIED v11.0] แถวสำหรับกราฟ Readmit รายเดือน (เพิ่มตัวเลือกปี) -->
+            <div class="row">
+                <div class="col-lg-12 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <!-- [MODIFIED] Removed specific readmit filter -->
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 id="readmitByMonthChartTitle" class="mb-0">จำนวนผู้ป่วย Readmit รายเดือน</h6>
+                                <!-- Removed the <div class="form-inline"> ... </div> block -->
+                            </div>
+                            <!-- [END v11.0] -->
+                            
+                            <div class="chart-container" style="max-height: 400px;">
+                                <canvas id="readmitByMonthChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- [END MODIFIED v11.0] -->
+
+
+            <!-- 5. Satisfaction Statistics -->
+            <h5 class="mt-4"><i class="fas fa-star text-primary"></i> 5. สถิติความพึงพอใจ (Satisfaction Statistics)</h5>
+             
+             <!-- [MODIFIED v9.1] Changed row layout -->
+             <div class="row">
+                 <!-- 1. Score Card (Modified) -->
+                 <div class="col-lg-3 mb-3"> <!-- Was col-lg-4 mb-1 -->
+                    <div class="dashboard-card shadow-sm" style="height: 320px;">
+                        <h6 style="text-align: left;"><i class='far fa-grin text-info'></i> คะแนนความพึงพอใจ</h6>
+                        <i class="fas fa-star-half-alt fa-3x  text-warning" style="margin-top: 50px;"></i>
+                        <h5 class="text-warning" id="db-avg-satisfaction" style="font-size: 3rem; margin-top: 20px;">...</h5>
+                        <p style="margin-top: 20px;">คะแนนความพึงพอใจเฉลี่ย (เต็ม 5)</p>
+                    </div>
+                </div>
+                <!-- 2. Chart Card (Modified) -->
+                <div class="col-lg-5 mb-3"> <!-- Was col-lg-8 -->
+                    <div class="card shadow-sm" style="height: 320px;"> <!-- Added height: 320px -->
+                        <div class="card-body">
+                             <h6><i class='fas fa-chart-bar text-info'></i> ระดับความพึงพอใจ (จากคะแนนเต็ม 5)</h6>
+                             <div class="chart-container" style="max-height: 250px;">
+                                <canvas id="satisfactionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- 3. NEW Comments Card -->
+                <div class="col-lg-4 mb-3">
+                    <div class="card shadow-sm" style="height: 320px;">
+                        <div class="card-body">
+                            <h6><i class="fas fa-comments text-info"></i> 5 ความคิดเห็นล่าสุด</h6>
+                            <div id="db-recent-comments" style="height: 250px; overflow-y: auto; font-size: 0.9rem; padding-top: 10px;">
+                                <p class="text-muted text-center p-4"><em>กำลังโหลด...</em></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- [END MODIFIED v9.1] -->
+
+        </div>
+    </div> <!-- /container -->
+    
+    <footer class="footer mt-auto py-3" style="background-color: #FFF0F5;"> 
+        <div class="container text-center">
+            <span class="text-muted">หอผู้ป่วยศัลยกรรมเฉพาะทาง โรงพยาบาลสวรรค์ประชารักษ์ &copy; 2024-2025</span>
+        </div>
+    </footer>
+
+    <!-- JS Libraries -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <!-- [GEMINI] Added Chart.js Datalabels Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
+
+    <!-- Dashboard JavaScript -->
+    <script>
+        // Global variables for Dashboard
+        let allCharts = {};
+        let followUpConfig = []; // Needed for charts
+        let allReadmitData = {}; // [NEW v11.0] To store all readmit data
+        const THAI_MONTHS_FISCAL_ORDER = [ // [NEW v11.0]
+            "ต.ค.", "พ.ย.", "ธ.ค.", "ม.ค.", "ก.พ.", "มี.ค.", 
+            "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย."
+        ];
+
+        // --- Helper Functions ---
+        function showLoader() { 
+            const loader = document.getElementById('loader');
+            if (loader) loader.style.display = 'flex'; 
+        }
+        function hideLoader() { 
+            const loader = document.getElementById('loader');
+            if (loader) loader.style.display = 'none'; 
+        }
+        function handleError(errorMsg) {
+            hideLoader();
+            console.error('App Error:', errorMsg);
+            Swal.fire({ icon: 'error', title: 'ผิดพลาด!', text: typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : String(errorMsg) });
+        }
+
+        /**
+         * [GEMINI] Helper to format yyyy-MM-dd date to Thai long format
+         */
+        function formatToThaiDate(dateString) {
+            if (!dateString || !dateString.includes('-')) {
+                return '-';
+            }
+            try {
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) return dateString; // Return original if invalid
+                
+                const thaiMonths = [
+                  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+                  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+                ];
+                
+                const day = date.getDate();
+                const monthName = thaiMonths[date.getMonth()];
+                const buddhistYear = date.getFullYear() + 543;
+                
+                return `${day} ${monthName} ${buddhistYear}`;
+            } catch (e) {
+                return dateString; // Return original on error
+            }
+        }
+
+        /**
+         * [NEW] Helper to extract First Name for PDPA
+         */
+        function getFirstName(fullName) {
+            if (!fullName || fullName === '-') return '-';
+            
+            // [FIX 1] Split by one or more spaces (regex \s+) to handle double spaces
+            const parts = fullName.trim().split(/\s+/);
+
+            try {
+                if (parts.length === 1) {
+                    // Case: "ศรีไพร" or "น.ส.ศรีไพร" or "นาง"
+                    // [FIX 2] Handle case where name is *only* a prefix
+                    const stripped = parts[0].replace(/^(น\.ส\.|นาย|นาง|ด\.ช\.|ด\.ญ\.)/g, '');
+                    // If stripping makes it empty (e.g., "นาง" -> ""), return the original.
+                    return stripped === '' ? parts[0] : stripped; 
+                } 
+                
+                if (parts.length === 2) {
+                    // Case 1: "นาย สายหยุด" -> ["นาย", "สายหยุด"]
+                    // Case 2: "นางบังอร อิ่มศรี" -> ["นางบังอร", "อิ่มศรี"]
+                    
+                    if (/^(นาย|นาง|น\.ส\.|ด\.ช\.|ด\.ญ\.)$/i.test(parts[0])) {
+                        // Case 1: Return "สายหยุด"
+                        return parts[1];
+                    } else {
+                        // Case 2: Return "นางบังอร".replace(...) -> "บังอร"
+                        return parts[0].replace(/^(น\.ส\.|นาย|นาง|ด\.ช\.|ด\.ญ\.)/g, '');
+                    }
+                }
+                
+                if (parts.length >= 3) {
+                    // Case: "นาย สายหยุด นาคไสย" -> ["นาย", "สายหยุด", "นาคไสย"]
+                    // Return "สายหยุด"
+                    return parts[1];
+                }
+                
+                return parts[0]; // Fallback
+            } catch (e) {
+                return fullName; // Return full name on error
+            }
+        }
+
+
+        // --- Main Function ---
+        document.addEventListener('DOMContentLoaded', function() {
+            // [GEMINI] Register the datalabels plugin globally
+            Chart.register(ChartDataLabels);
+            
+            showLoader();
+            // [MODIFIED] Load 'All' by default
+            google.script.run
+                .withSuccessHandler(data => {
+                    if (data.dashboard.error) {
+                         handleError("ไม่สามารถโหลดข้อมูล Dashboard: " + data.dashboard.error); // [FIXED]
+                         document.getElementById('db-total-patients').textContent = 'Error';
+                         return;
+                    }
+                    if (data.config.error) {
+                        handleError("ไม่สามารถโหลด FollowUp Config: " + data.config.error);
+                        // Continue anyway, some charts might break
+                    }
+                    
+                    followUpConfig = data.config; // Set global config
+                    
+                    // [NEW] Populate the global filter first
+                    populateGlobalFiscalYearFilter(data.dashboard.globalAvailableFiscalYears);
+                    
+                    // Populate the dashboard with 'All' data
+                    populateDashboard(data.dashboard); 
+                    
+                    hideLoader();
+                    
+                    // [NEW] Add event listener *after* initial load and population
+                    const globalFilterEl = document.getElementById('globalFiscalYearFilter');
+                    if (globalFilterEl) {
+                        globalFilterEl.addEventListener('change', onGlobalFilterChange);
+                    }
+                })
+                .withFailureHandler(err => {
+                    handleError("เกิดข้อผิดพลาดในการโหลด Dashboard: " + err.message);
+                    document.getElementById('db-total-patients').textContent = 'Error';
+                })
+                .getDashboardPageData('All'); // [MODIFIED] Pass 'All'
+        });
+
+
+        // =======================================================
+        // --- DASHBOARD FUNCTIONS (Moved from JavaScript.html) ---
+        // =======================================================
+
+        /**
+         * [MODIFIED] Destroys all active Chart.js instances.
+         */
+        function destroyAllCharts() {
+            Object.values(allCharts).forEach(chart => {
+                if (chart && typeof chart.destroy === 'function') {
+                    chart.destroy();
+                }
+            });
+            allCharts = {};
+        }
+        
+        /**
+         * [NEW] Populates the global fiscal year filter dropdown.
+         */
+        function populateGlobalFiscalYearFilter(years) {
+            const selectEl = document.getElementById('globalFiscalYearFilter');
+            if (!selectEl) return;
+
+            selectEl.innerHTML = ''; // Clear old options
+            
+            // Add "All" option first
+            const allOption = document.createElement('option');
+            allOption.value = 'All';
+            allOption.textContent = 'ทั้งหมด';
+            selectEl.appendChild(allOption);
+
+            if (years && years.length > 0) {
+                years.forEach(year => {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    selectEl.appendChild(option);
+                });
+            }
+            
+            selectEl.value = 'All'; // Set default to 'All'
+        }
+
+        /**
+         * [NEW] Handles the change event for the global fiscal year filter.
+         */
+        function onGlobalFilterChange() {
+            const selectedValue = document.getElementById('globalFiscalYearFilter').value;
+            if (!selectedValue) return;
+            
+            console.log('Global filter changed to:', selectedValue);
+            showLoader();
+            destroyAllCharts(); // Destroy old charts before fetching new data
+
+            google.script.run
+                .withSuccessHandler(data => {
+                    if (data.dashboard.error) {
+                         handleError("ไม่สามารถโหลดข้อมูล Dashboard: " + data.dashboard.error);
+                         return;
+                    }
+                    // Re-populate the entire dashboard with new filtered data
+                    populateDashboard(data.dashboard); 
+                    hideLoader();
+                })
+                .withFailureHandler(err => {
+                    handleError("เกิดข้อผิดพลาดในการโหลด Dashboard: " + err.message);
+                })
+                .getDashboardPageData(selectedValue); // Pass the selected year
+        }
+
+        /**
+         * Helper function to create/update a chart instance.
+         */
+        function createChart(ctxId, type, chartData, options) {
+            const ctx = document.getElementById(ctxId);
+            if (!ctx) {
+                console.error('Chart canvas not found:', ctxId);
+                return;
+            }
+            if (allCharts[ctxId]) {
+                allCharts[ctxId].destroy();
+            }
+            allCharts[ctxId] = new Chart(ctx.getContext('2d'), {
+                type: type,
+                data: chartData,
+                options: options || {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        /**
+         * Populates all dashboard components with data.
+         */
+        function populateDashboard(data) {
+            // 1. Overview Cards
+            document.getElementById('db-total-patients').textContent = data.overview.totalPatients || 0;
+            document.getElementById('db-active-followup').textContent = data.overview.activeFollowup || 0;
+            document.getElementById('db-completed-28d').textContent = data.overview.completed28d || 0;
+            document.getElementById('db-completed-90d').textContent = data.overview.completed90d || 0;
+            document.getElementById('db-deceased').textContent = data.overview.deceased || 0;
+            document.getElementById('db-new-this-week').textContent = data.overview.newThisWeek || 0;
+
+            // 2. Follow-up Status
+            // [REMOVED] populateFollowUpStageChart(data.followUpStatus.stageCounts);
+            populateFollowUpPerformanceChart(data.followUpStatus.performance28d);
+            populateFollowUpPerformanceChart90Day(data.followUpStatus.performance90d); // [ADDED]
+            // [MODIFIED] Call new function with new data property
+            populateLatestVisitsList(data.followUpStatus.latestVisits);
+
+            // 3. Patient Insights
+            populateDiagnosisChart(data.insights.diagnosis);
+            populateDoctorChart(data.insights.doctors);
+            populateProvinceChart(data.insights.provinces);
+            populateAgeGroupChart(data.insights.ageGroups); // [ADDED]
+
+            // 4. Clinical Outcomes
+            populateFcTrendChart(data.outcomes.fcTrend);
+            
+            // [MODIFIED v11.2] Populate new readmission count card
+            document.getElementById('db-readmission-count').textContent = (data.outcomes.readmissionCount || 0) + ' คน';
+            
+            // [USER REQUEST] Format readmission rate to 2 decimal places
+            const readmitRate = parseFloat(data.outcomes.readmissionRate) || 0;
+            document.getElementById('db-readmission-rate').textContent = readmitRate.toFixed(2) + ' %';
+            
+            // [REMOVED BY USER REQUEST]
+            // document.getElementById('db-avg-followup-duration').textContent = (data.outcomes.avgFollowupDuration || 0) + ' วัน';
+            
+            // [MODIFIED] Store readmit data
+            allReadmitData = data.outcomes.readmitByMonth || {};
+            const availableYears = data.outcomes.availableFiscalYears || [];
+            
+            // [MODIFIED] Get the *currently selected* global filter value
+            const globalFilterEl = document.getElementById('globalFiscalYearFilter');
+            let selectedGlobalYear = globalFilterEl ? globalFilterEl.value : 'All';
+            let selectedGlobalYearText = globalFilterEl ? globalFilterEl.options[globalFilterEl.selectedIndex].text : 'ทั้งหมด';
+
+            let chartData;
+            let titleYearText;
+
+            if (selectedGlobalYear === 'All') {
+                // [NEW LOGIC] When 'All' is selected, show an empty graph and a prompt
+                chartData = { labels: THAI_MONTHS_FISCAL_ORDER, data: [] };
+                titleYearText = 'ทั้งหมด (กรุณาเลือกปีงบประมาณเพื่อดูรายเดือน)';
+                
+            } else {
+                // A specific year is selected (e.g., '2568')
+                const dataForYear = allReadmitData[selectedGlobalYear] || {};
+                const chartValues = THAI_MONTHS_FISCAL_ORDER.map(month => dataForYear[month] || 0);
+                chartData = { labels: THAI_MONTHS_FISCAL_ORDER, data: chartValues };
+                titleYearText = selectedGlobalYearText;
+            }
+            
+            // Call the chart function directly using the filtered data
+            populateReadmitByMonthChart(chartData, titleYearText);
+
+            // 5. Satisfaction
+            document.getElementById('db-avg-satisfaction').textContent = (data.satisfaction.average || 0) + ' / 5';
+            populateSatisfactionChart(data.satisfaction.breakdown);
+            populateRecentComments(data.satisfaction.comments); // [NEW 9.1]
+        }
+        
+        /**
+         * [NEW 9.1] Populates the recent comments list.
+         */
+        function populateRecentComments(comments) {
+            const listDiv = document.getElementById('db-recent-comments');
+            if (!comments || comments.length === 0) {
+                listDiv.innerHTML = '<p class="text-center text-muted p-4"><em>ไม่พบความคิดเห็นล่าสุด</em></p>';
+                return;
+            }
+            
+            let html = '<ul class="list-group list-group-flush">';
+            comments.forEach(comment => {
+                // Escape HTML for safety
+                const safeComment = document.createElement('div');
+                safeComment.textContent = comment;
+                
+                html += `
+                    <li class="list-group-item">
+                        <i class="fas fa-comment-dots fa-xs text-muted"></i> ${safeComment.innerHTML}
+                    </li>
+                `;
+            });
+            html += '</ul>';
+            listDiv.innerHTML = html;
+        }
+
+
+        /**
+         * [REPLACED] Populates the Latest 5 Visits table.
+         */
+        function populateLatestVisitsList(latestVisitsData) {
+            const tableBody = document.getElementById('db-latest-visits-list');
+            if (!latestVisitsData || latestVisitsData.length === 0) {
+                // [GEMINI] Updated colspan
+                tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted"><em>ไม่พบข้อมูลการเยี่ยมล่าสุด</em></td></tr>';
+                return;
+            }
+            let html = '';
+            latestVisitsData.forEach(item => {
+                // [GEMINI] Apply new column order, format date, and remove old columns
+                // Added style="white-space: nowrap;" to ensure single line
+                html += `
+                    <tr style="white-space: nowrap;">
+                        <td>${getFirstName(item.name)}</td>
+                        <td>${item.surgery || '-'}</td>
+                        <td>${item.doctor || '-'}</td>
+                        <td>${formatToThaiDate(item.visitDate)}</td>
+                    </tr>
+                `;
+            });
+            tableBody.innerHTML = html;
+        }
+
+        /**
+         * [REMOVED] Creates the Follow-up Stage bar chart.
+         */
+        // function populateFollowUpStageChart(stageCounts) { ... }
+
+        /**
+         * Creates the Follow-up Performance donut chart.
+         */
+        function populateFollowUpPerformanceChart(performanceData) {
+            const dataToShow = performanceData || { completed: 0, missed: 0 };
+            const data = {
+                labels: ['ติดตามสำเร็จ (สรุป 28 วัน)', 'ค้างติดตาม (เกิน 28 วัน)'],
+                datasets: [{
+                    data: [dataToShow.completed, dataToShow.missed],
+                    backgroundColor: ['#28a745', '#dc3545'],
+                }]
+            };
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { position: 'bottom' },
+                    title: { display: true, text: 'อัตราส่วน สรุป 28 วัน (สำเร็จ vs ค้าง)' },
+                    // [GEMINI] Add datalabels config
+                    datalabels: {
+                        formatter: (value, ctx) => {
+                            if (value <= 0) return '';
+                            let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                            let percentage = (value * 100 / sum).toFixed(1) + '%';
+                            return `${value}\n(${percentage})`; // Show value and percentage
+                        },
+                        color: '#fff',
+                        font: { weight: 'bold', size: 12 }
+                    }
+                }
+            };
+            createChart('followUpPerformanceChart', 'doughnut', data, options);
+        }
+
+        /**
+         * [ADDED] Creates the 90-Day Follow-up Performance donut chart.
+         */
+        function populateFollowUpPerformanceChart90Day(performanceData) {
+            const dataToShow = performanceData || { completed: 0, missed: 0 };
+            
+            const data = {
+                labels: ['ติดตามสำเร็จ (สรุป 90 วัน)', 'ค้างติดตาม (เกิน 90 วัน)'],
+                datasets: [{
+                    data: [dataToShow.completed, dataToShow.missed],
+                    backgroundColor: ['#17a2b8', '#6c757d'], // Info and Secondary colors
+                }]
+            };
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { position: 'bottom' },
+                    title: { display: true, text: 'อัตราส่วน สรุป 90 วัน (สำเร็จ vs ค้าง)' },
+                    datalabels: {
+                        formatter: (value, ctx) => {
+                            if (value <= 0) return '';
+                            let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                            if (sum === 0) return '';
+                            let percentage = (value * 100 / sum).toFixed(1) + '%';
+                            return `${value}\n(${percentage})`; 
+                        },
+                        color: '#fff',
+                        font: { weight: 'bold', size: 12 }
+                    }
+                }
+            };
+            createChart('followUpPerformanceChart90Day', 'doughnut', data, options); 
+        }
+
+
+        /**
+         * [GEMINI] Re-added the missing Diagnosis chart function
+         * Creates the Top 10 Diagnosis horizontal bar chart.
+         */
+        function populateDiagnosisChart(diagData) {
+            // [GEMINI] dataToShow is now an array of objects: [{label: "...", value: ...}]
+            const dataToShow = diagData || []; 
+            
+            // [GEMINI] Map the array to separate labels and values
+            const labels = dataToShow.map(item => item.label);
+            const dataValues = dataToShow.map(item => item.value);
+
+            const data = {
+                labels: labels,
+                datasets: [{
+                    label: 'Top 10 Diagnosis',
+                    data: dataValues,
+                    backgroundColor: 'rgba(23, 162, 184, 0.7)',
+                    borderColor: 'rgba(23, 162, 184, 1)',
+                }]
+            };
+            const options = {
+                indexAxis: 'y', // This makes it horizontal
+                responsive: true,
+                maintainAspectRatio: false,
+                // [GEMINI] Add padding to prevent labels from being cut off
+                layout: {
+                    padding: {
+                        right: 20
+                    }
+                },
+                plugins: { 
+                    legend: { display: false },
+                    // [GEMINI] Add datalabels config
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'right', // Use 'right' for horizontal bars
+                        formatter: (value) => value > 0 ? value : '',
+                        color: '#444'
+                    }
+                },
+                scales: { x: { beginAtZero: true, title: { display: true, text: 'จำนวนผู้ป่วย' } } }
+            };
+            createChart('diagnosisChart', 'bar', data, options);
+        }
+
+        /**
+         * Creates the Top 10 Doctors bar chart.
+         */
+        function populateDoctorChart(docData) {
+            const dataToShow = docData || {};
+            const labels = Object.keys(dataToShow);
+            const dataValues = Object.values(dataToShow);
+            const data = {
+                labels: labels,
+                datasets: [{
+                    label: 'Top 10 แพทย์',
+                    data: dataValues,
+                    backgroundColor: 'rgba(0, 123, 255, 0.7)',
+                    borderColor: 'rgba(0, 123, 255, 1)',
+                }]
+            };
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                // [GEMINI] Add padding to prevent labels from being cut off
+                layout: {
+                    padding: {
+                        top: 20
+                    }
+                },
+                plugins: { 
+                    legend: { display: false },
+                    // [GEMINI] Add datalabels config
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        formatter: (value) => value > 0 ? value : '',
+                        color: '#444'
+                    }
+                },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'จำนวนผู้ป่วย' } } }
+            };
+            createChart('doctorChart', 'bar', data, options);
+        }
+
+        /**
+         * Creates the Top 15 Provinces bar chart.
+         */
+        function populateProvinceChart(provData) {
+            const dataToShow = provData || {};
+            // Filter out "ไม่ระบุ" if it's not the main data
+            const filteredData = { ...dataToShow };
+            if (Object.keys(filteredData).length > 1 && filteredData['ไม่ระบุ']) {
+                delete filteredData['ไม่ระบุ'];
+            }
+            const labels = Object.keys(filteredData);
+            const dataValues = Object.values(filteredData);
+            const data = {
+                labels: labels,
+                datasets: [{
+                    label: 'Top 15 จังหวัด',
+                    data: dataValues,
+                    backgroundColor: 'rgba(255, 193, 7, 0.7)',
+                    borderColor: 'rgba(255, 193, 7, 1)',
+                }]
+            };
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                // [GEMINI] Add padding to prevent labels from being cut off
+                layout: {
+                    padding: {
+                        top: 20
+                    }
+                },
+                plugins: { 
+                    legend: { display: false },
+                    // [GEMINI] Add datalabels config
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        formatter: (value) => value > 0 ? value : '',
+                        color: '#444'
+                    }
+                },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'จำนวนผู้ป่วย' } } }
+            };
+            createChart('provinceChart', 'bar', data, options);
+        }
+        
+        /**
+         * [ADDED] Creates the Age Group bar chart.
+         */
+        function populateAgeGroupChart(ageData) {
+            const dataToShow = ageData || { '0-20': 0, '21-40': 0, '41-60': 0, '61-80': 0, '81+': 0, 'ไม่ระบุ': 0 };
+
+            // [MODIFIED] Define explicit order to match user request
+            const labels = ['0-20', '21-40', '41-60', '61-80', '81+', 'ไม่ระบุ'];
+            
+            // [MODIFIED] Map values based on the defined label order
+            const dataValues = labels.map(label => dataToShow[label] || 0);
+
+            const data = {
+                labels: labels,
+                datasets: [{
+                    label: 'จำนวนผู้ป่วย',
+                    data: dataValues,
+                    backgroundColor: 'rgba(40, 167, 69, 0.7)', // [MODIFIED] Green color
+                    borderColor: 'rgba(40, 167, 69, 1)', // [MODIFIED] Green color
+                    borderWidth: 1
+                }]
+            };
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 20
+                    }
+                },
+                plugins: { 
+                    legend: { display: false },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        formatter: (value) => value > 0 ? value : '',
+                        color: '#444'
+                    }
+                },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'จำนวนผู้ป่วย' } } }
+            };
+            createChart('ageGroupChart', 'bar', data, options);
+        }
+
+
+        /**
+         * Creates the Functional Class Trend line chart.
+         */
+        function populateFcTrendChart(fcData) {
+            if (!followUpConfig || followUpConfig.length === 0) return; // Guard
+            const dataToShow = fcData || [];
+            const labels = followUpConfig.map(p => p.label);
+            const data = {
+                labels: labels,
+                datasets: [{
+                    label: 'FC เฉลี่ย',
+                    data: dataToShow,
+                    fill: false,
+                    borderColor: 'rgb(220, 53, 69)',
+                    backgroundColor: 'rgba(220, 53, 69, 0.5)',
+                    tension: 0.1
+                }]
+            };
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { display: false },
+                    // [GEMINI] Add datalabels config
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        backgroundColor: 'rgba(255, 255, 255, 0.7)', // Add background for readability
+                        borderRadius: 4,
+                        padding: 4,
+                        color: '#dc3545', // Match line color
+                        font: { weight: 'bold' },
+                        // [GEMINI] Updated formatter to be more robust (handles strings)
+                        formatter: (value) => {
+                            const num = parseFloat(value);
+                            if (!isNaN(num) && num !== null) {
+                                return num.toFixed(2);
+                            }
+                            return ''; // Return empty string if not a valid number
+                        }
+                    }
+                },
+                scales: { 
+                    y: { 
+                        beginAtZero: false, 
+                        min: 1, 
+                        title: { display: true, text: 'FC (ค่าน้อย = ดีขึ้น)' }
+                    } 
+                }
+            };
+            createChart('fcTrendChart', 'line', data, options);
+        }
+
+        /**
+         * Creates the Satisfaction Breakdown donut chart.
+         */
+        function populateSatisfactionChart(breakdownData) {
+            const dataToShow = breakdownData || [0, 0, 0, 0];
+            const data = {
+                labels: ['ไม่พอใจ (1-2)', 'ปานกลาง (3)', 'พอใจ (4)', 'พอใจมาก (5)'],
+                datasets: [{
+                    data: dataToShow,
+                    backgroundColor: ['#dc3545', '#ffc107', '#17a2b8', '#28a745'],
+                }]
+            };
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { position: 'bottom' },
+                    // [GEMINI] Add datalabels config
+                    datalabels: {
+                        formatter: (value) => value > 0 ? value : '', // Show value if > 0
+                        color: '#fff',
+                        font: { weight: 'bold', size: 12 }
+                    }
+                }
+            };
+            createChart('satisfactionChart', 'doughnut', data, options);
+        }
+
+        /**
+         * [REMOVED] This function is no longer needed as the specific filter was removed.
+         */
+        // function populateReadmitYearFilter(years) { ... }
+
+        /**
+         * [MODIFIED v11.0] Creates the Readmit by Month bar chart.
+         * Now accepts chartData and selectedYear.
+         */
+        function populateReadmitByMonthChart(chartData, selectedYear) {
+            const dataToShow = chartData || { labels: [], data: [] };
+            
+            // อัปเดต Title ของกราฟให้แสดงปีงบประมาณที่ถูกต้อง
+            const titleEl = document.getElementById('readmitByMonthChartTitle');
+            if (titleEl) {
+                // [MODIFIED] Check if the title includes "กรุณาเลือก"
+                if (selectedYear && selectedYear.includes('กรุณาเลือก')) {
+                    titleEl.textContent = `จำนวนผู้ป่วย Readmit (สปร.) รายเดือน (${selectedYear})`;
+                } else {
+                    titleEl.textContent = `จำนวนผู้ป่วย Readmit (สปร.) รายเดือน (ปีงบประมาณ ${selectedYear || '....'})`;
+                }
+            }
+
+            const data = {
+                labels: dataToShow.labels, // ["ต.ค.", "พ.ย.", ...]
+                datasets: [{
+                    label: 'จำนวน Readmit (สปร.)',
+                    data: dataToShow.data, // [1, 2, 0, ...]
+                    backgroundColor: 'rgba(220, 53, 69, 0.7)', // สีแดง
+                    borderColor: 'rgba(220, 53, 69, 1)',
+                    borderWidth: 1
+                }]
+            };
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 20
+                    }
+                },
+                plugins: { 
+                    legend: { display: false },
+                    datalabels: { // แสดงตัวเลขบนแท่งกราฟ
+                        anchor: 'end',
+                        align: 'top',
+                        formatter: (value) => value > 0 ? value : '', // แสดงเมื่อค่า > 0
+                        color: '#444'
+                    }
+                },
+                scales: { 
+                    y: { 
+                        beginAtZero: true, 
+                        title: { display: true, text: 'จำนวนผู้ป่วย' } 
+                    } 
+                }
+            };
+            createChart('readmitByMonthChart', 'bar', data, options);
+        }
+        // [END NEW]
+
+    </script>
+<script src="js/config.js"></script>`n  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>`n  <script src="js/supabase-client.js"></script>
+</body>
+</html>
+
+

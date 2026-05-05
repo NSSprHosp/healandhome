@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบติดตามเยี่ยมผู้ป่วย Heal&amp;Home</title>
+    
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" xintegrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" xintegrity="sha512-iBBXm8fW90+nuLcSKlbmrPcLa0OT92xO1BIsZ+ywDWZCvqsWgccV3gFoRBv0z+8dLJgyAHIhR35VZc2oM/gI1w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Select2 CSS for searchable dropdown -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Custom style to ensure uniform width and height for ThaiCOC input row */
+        .thaicoc-row .form-control,
+        .thaicoc-row .select2-container {
+            width: 100% !important;
+        }
+        .thaicoc-row .select2-selection--single {
+            height: calc(1.5em + .5rem + 2px) !important; /* Match form-control-sm height */
+            display: flex;
+            align-items: center;
+        }
+
+        /* --- [NEW] CSS for Image Preview --- */
+        .image-preview-container {
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 0.25rem;
+            padding: 5px;
+            background-color: #f9f9f9;
+            height: 160px; /* Set a fixed height */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        .image-preview {
+            max-width: 100%;
+            max-height: 150px; 
+            border-radius: 0.25rem;
+            object-fit: cover;
+        }
+        /* --- [END NEW] --- */
+
+        /* --- [NEW v8.7] CSS for CaseClose Modal --- */
+        #caseCloseModal .table-wrapper {
+            max-height: 40vh;
+            overflow-y: auto;
+        }
+        #caseCloseModal .form-control-sm {
+            height: calc(1.5em + .5rem + 2px);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader" class="loader-overlay">
+        <div class="spinner-border text-success" role="status">
+            <span class="sr-only">กำลังโหลด...</span>
+        </div>
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top" style="background-color: #FFEFF2;">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#" onclick="showListView(); return false;">
+                <i class="fas fa-hospital-user"></i> ระบบติดตามเยี่ยมผู้ป่วย Heal&Home <small> v 9.6</small> <!-- [UPDATED] Version -->
+            </a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                 <ul class="navbar-nav mr-auto">
+                    <!-- === [MODIFIED] Dashboard Button changed to Link === -->
+                     <li class="nav-item">
+                       <a class="btn btn-outline-warning my-2 my-sm-0 ml-2" href="<?= ScriptApp.getService().getUrl(); ?>?page=dashboard" target="_blank" rel="noopener noreferrer">
+                            <i class="fas fa-tachometer-alt"></i> Dashboard
+                       </a>
+                    </li>
+                    <!-- === [END MODIFIED] === -->
+                    <li class="nav-item">
+                       <button id="followUp28DayBtn" class="btn btn-outline-primary my-2 my-sm-0 ml-2">
+                            <i class="fas fa-calendar-day"></i> ติดตามครบ 28 วัน
+                        </button>
+                    </li>
+                     <li class="nav-item">
+                       <button id="followUp90DayBtn" class="btn btn-outline-success my-2 my-sm-0 ml-2">
+                            <i class="fas fa-calendar-alt"></i> ติดตามครบ 90 วัน
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                       <button id="reportsBtn" class="btn btn-outline-info my-2 my-sm-0 ml-2">
+                            <i class="fas fa-chart-bar"></i> รายงาน
+                        </button>
+                    </li>
+                    <!-- === [NEW v8.7] Case Close Button (for Admin) === -->
+                    <li class="nav-item" id="navCaseCloseBtnContainer" style="display: none;">
+                       <button id="caseCloseBtn" class="btn btn-outline-secondary my-2 my-sm-0 ml-2">
+                            <i class="fas fa-tasks-alt"></i> ตั้งค่าปิดเคส
+                        </button>
+                    </li>
+                    <!-- === [END NEW v8.7] === -->
+
+                    <!-- ADDED v8.0 -->
+                    <li class="nav-item" id="navPhysicianAlertBtnContainer" style="display: none;">
+                       <button id="physicianAlertBtn" class="btn btn-outline-danger my-2 my-sm-0 ml-2">
+                            <i class="fas fa-bell"></i> รายงานแพทย์
+                        </button>
+                    </li>
+                 
+                    <!-- === [NOTE v8.7] For Superadmin (Prepared but hidden) === -->
+                    <!-- 
+                    <li class="nav-item" id="navSuperAdminBtnContainer" style="display: none;">
+                       <button id="superAdminBtn" class="btn btn-outline-dark my-2 my-sm-0 ml-2">
+                            <i class="fas fa-user-shield"></i> Superadmin
+                        </button>
+                    </li>
+                    -->
+                </ul>
+                <ul class="navbar-nav ml-auto">
+                    <!-- <li class="nav-item"> -->
+                        <span id="userInfo" class="navbar-text mr-3" style="display: none;"></span>
+                        <button id="addPatientBtn" class="btn btn-success my-2 my-sm-0" style="display: none;"> <!-- ซ่อนไว้ก่อน รอเช็คสิทธิ์ -->
+                            <i class="fas fa-plus-circle"></i> เพิ่มผู้ป่วยใหม่
+                        </button>&nbsp;
+                        <button id="logout-button" class="btn btn-danger" ><i class="fas fa-sign-out-alt"></i> ออกจากระบบ</button>                        
+                    <!-- </li> -->
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid main-content">
+        <!-- === [REMOVED] Dashboard View === -->
+        <!-- The <div id="dashboardView">...</div> block was here -->
+
+        <!-- List View (มุมมองหลัก) -->
+        <div id="listView" style="display: none;"> <!-- [MODIFIED] Set default to none, JS will show it -->
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+                <h4 class="mb-0 section-title">รายการผู้ป่วยทั้งหมด</h4>
+                <div class="form-inline">
+                     <input type="text" id="searchInput" class="form-control form-control-sm mr-2" placeholder="ค้นหา (ชื่อ, HN)...">
+                <div class="custom-control custom-switch">
+                    <input type="checkbox" class="custom-control-input" id="sortDueFirstToggle">
+                    <label class="custom-control-label" for="sortDueFirstToggle">แสดงรายชื่อครบกำหนดก่อน</label>
+                </div>                
+                </div>  
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover table-sm stylish-table">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>ชื่อ-สกุล</th>
+                            <th>อายุ</th>
+                            <th>HN</th>
+                            <th>โทรศัพท์</th>
+                            <th>แพทย์เจ้าของไข้</th>                            
+                            <th>สถานะ</th>
+                            <th>การดำเนินการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="patientTableBody">
+                    </tbody>
+                </table>
+            </div>
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center" id="paginationControls">
+                </ul>
+            </nav>
+        </div>
+
+        <!-- Follow-up 28 Day View (มุมมองติดตาม 28 วัน) -->
+        <div id="followUp28DayView" style="display:none;">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+                <h4 class="mb-0 section-title">รายการผู้ป่วยครบกำหนดติดตาม 28 วัน, ปิดเคส หรือ เสียชีวิต</h4>
+                <div class="form-inline">
+                     <input type="text" id="searchInput28Day" class="form-control form-control-sm mr-2" placeholder="ค้นหา (ชื่อ, HN, ID)...">
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover table-sm stylish-table">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>ชื่อ-สกุล</th>
+                            <th>HN</th>
+                            <th>วันที่กลับบ้าน</th>
+                            <th>สถานะเคส</th>
+                            <th>สถานะสรุปผล 28 วัน</th>
+                            <th class="text-center">การดำเนินการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="followUp28DayTableBody">
+                    </tbody>
+                </table>
+            </div>
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center" id="paginationControls28Day">
+                </ul>
+            </nav>
+        </div>
+        
+        <!-- Follow-up 90 Day View -->
+        <div id="followUp90DayView" style="display:none;">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+                <h4 class="mb-0 section-title">รายการผู้ป่วยครบกำหนดติดตาม 90 วัน, ปิดเคส หรือ เสียชีวิต</h4>
+                <div class="form-inline">
+                     <input type="text" id="searchInput90Day" class="form-control form-control-sm mr-2" placeholder="ค้นหา (ชื่อ, HN, ID)...">
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover table-sm stylish-table">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>ชื่อ-สกุล</th>
+                            <th>HN</th>
+                            <th>วันที่กลับบ้าน</th>
+                            <th>สถานะเคส</th>
+                            <th>สถานะสรุปผล 28 วัน</th> <!-- [MODIFIED] Added new column -->
+                            <th>สถานะสรุปผล 90 วัน</th>
+                            <th class="text-center">การดำเนินการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="followUp90DayTableBody">
+                    </tbody>
+                </table>
+            </div>
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center" id="paginationControls90Day">
+                </ul>
+            </nav>
+        </div>
+
+        <!-- Physician Alert View (v8.0) -->
+        <div id="physicianAlertView" style="display:none;">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+                <h4 class="mb-0 section-title"><i class="fas fa-bell text-danger"></i> หน้าสำหรับส่งรายงานแพทย์</h4>
+                <!-- [UPDATED v8.1] Added Sort Toggle -->
+                <!-- === [NEW v8.2] ADDED SEND BUTTON === -->
+                <div class="text-center my-3">
+                    <button id="sendSelectedReportsBtn" class="btn btn-primary btn-md">
+                        <i class="fas fa-paper-plane"></i> ส่งรายงานแพทย์ที่เลือก (ที่มีเครื่องหมาย <i class="fas fa-check-square"></i>)
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="opensheet()"><i class="fab fa-google-drive"></i> ภาพบาดแผลผู้ป่วย </button>                
+                </div>
+                <!-- === END [NEW v8.2] === -->                
+                <div class="form-inline">
+                     <input type="text" id="searchInputPhysicianAlert" class="form-control form-control-sm mr-2" placeholder="ค้นหา (ชื่อ, HN, ID)...">
+                     <div class="custom-control custom-switch">
+                        <input type="checkbox" class="custom-control-input" id="sortDueFirstTogglePhysicianAlert">
+                        <label class="custom-control-label" for="sortDueFirstTogglePhysicianAlert">แสดงรายชื่อครบกำหนดก่อน</label>
+                     </div>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-hover table-sm stylish-table">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>ชื่อ-สกุล</th>
+                            <th>HN</th>
+                            <th>โทรศัพท์</th>
+                            <th>แพทย์เจ้าของไข้</th>
+                            <th>สถานะเคส</th>
+                            <th>ส่งรายงาน</th>
+                            <th class="text-center">การดำเนินการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="physicianAlertTableBody">
+                    </tbody>
+                </table>
+            </div>
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center" id="paginationControlsPhysicianAlert">
+                </ul>
+            </nav>
+        </div>
+
+
+        <!-- Form View (Add/Edit) -->
+        <div id="formView" style="display:none;">
+            <h4 id="formTitle" class="mb-3 section-title">เพิ่มข้อมูลผู้ป่วย</h4>
+            <form id="patientForm">
+                <input type="hidden" id="recordId" name="ID">
+                <input type="hidden" id="hiddenClosingDetails" name="สรุปปิดเคส_รายละเอียด">
+                <input type="hidden" id="hiddenClosingDate" name="สรุปปิดเคส_วันที่">
+                <input type="hidden" id="hiddenClosingBy" name="สรุปปิดเคส_ผู้บันทึก">
+                
+                <div class="card mb-3">
+                    <div class="card-header form-section-header">
+                        ข้อมูลทั่วไป
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="form-group col-md-6">
+                                <label for="fullName">ชื่อ-สกุล <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="fullName" name="ชื่อ-สกุล" required>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label for="age">อายุ</label>
+                                <input type="number" class="form-control form-control-sm" id="age" name="อายุ">
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label for="hn">HN</label>
+                                <input type="text" class="form-control form-control-sm" id="hn" name="HN">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="form-group col-md-6">
+                                <label for="phone">โทรศัพท์ <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="phone" name="โทรศัพท์" required>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="physician">แพทย์เจ้าของไข้ <span class="text-danger">*</span></label>
+                                <select class="form-control form-control-sm" id="physician" name="แพทย์เจ้าของไข้" required>
+                                    <option value="">-- เลือกแพทย์ --</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="form-group col-md-6">
+                                <label for="diagnosis">DX (Diagnosis)</label>
+                                <input type="text" class="form-control form-control-sm" id="diagnosis" name="Diax">
+                            </div>
+                             <div class="form-group col-md-6">
+                                <label for="surgery">การผ่าตัด</label>
+                                <input type="text" class="form-control form-control-sm" id="surgery" name="การผ่าตัด">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="form-group col-md-6">
+                                <label for="surgeryDate">วันที่ผ่าตัด</label>
+                                <input type="date" class="form-control form-control-sm" id="surgeryDate" name="วันที่ผ่าตัด">
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="dischargeDate">วันที่กลับบ้าน <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control form-control-sm" id="dischargeDate" name="วันที่กลับบ้าน" required>
+                            </div>
+                        </div>
+                         <div class="form-group">
+                            <label for="medHistory">ยา H/M</label>
+                            <textarea class="form-control form-control-sm" id="medHistory" name="ยา H/M" rows="2"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="notes">หมายเหตุ (วันนัดF/U , นัดตัดไหม , ระบุตำแหน่งแผล , อื่นๆ)</label>
+                            <textarea class="form-control form-control-sm" id="notes" name="หมายเหตุ(วันนัดF/U , นัดตัดไหม, อื่นๆ)" rows="2"></textarea>
+                        </div>
+                        <div class="row thaicoc-row">
+                            <div class="form-group col-md-4">
+                                <label for="thaiCocDate">วันที่ส่ง ThaiCOC</label>
+                                <input type="date" class="form-control form-control-sm" id="thaiCocDate" name="วันที่ส่ง ThaiCOC">
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label for="thaiCocProvince">จังหวัดที่ส่ง ThaiCOC</label>
+                                <select class="form-control form-control-sm" id="thaiCocProvince" name="จังหวัดที่ส่ง ThaiCOC">
+                                    <option value="">-- เลือกจังหวัด --</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label for="thaiCocSender">ชื่อผู้ส่ง ThaiCOC</label>
+                                <input type="text" class="form-control form-control-sm" id="thaiCocSender" name="ชื่อผู้ส่ง ThaiCOC">
+                            </div>
+                        </div>
+                        
+                        <div class="row justify-content-center align-items-center mt-3 p-3 bg-light border rounded">
+                            <div class="col-md-auto">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="deceased" name="ผู้ป่วยเสียชีวิต">
+                                    <label class="form-check-label text-danger font-weight-bold" for="deceased">
+                                        <i class="fas fa-cross"></i> ผู้ป่วยเสียชีวิต
+                                    </label>
+                                </div>
+                            </div>
+                            <!-- เพิ่ม checkbox สำหรับทำแบบประเมิน 7 วัน ตรงนี้ -->
+                            <div class="col-md-auto mx-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="assessment7d" name="ทำแบบประเมิน7วัน">
+                                    <label class="form-check-label text-info font-weight-bold" for="assessment7d">
+                                        <i class="fas fa-clipboard-list"></i> ทำแบบประเมินเมื่อครบ 7 วัน
+                                    </label>
+                                </div>
+                            </div>
+                            <!-- สิ้นสุดส่วนที่เพิ่ม -->
+                            <div class="col-md-auto">
+                                <div class="form-group-toggle mb-0">
+                                    <label for="status" class="form-label mb-0">สถานะการติดตาม <span class="text-danger">*</span> <span id="status-text" class="status-indicator"></span></label>
+                                    <label class="toggle-switch mb-0">
+                                        <input type="checkbox" id="status" name="สถานะ">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header form-section-header">
+                        ข้อมูลการติดตามผล
+                    </div>
+                    <div class="card-body">
+                        <ul class="nav nav-tabs nav-fill mb-3" id="followUpTabsContainer" role="tablist">
+                        </ul>
+                        <div class="tab-content" id="followUpTabContentContainer">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 text-center">
+                    <button type="submit" class="btn btn-primary btn-lg mr-2"><i class="fas fa-save"></i> บันทึกข้อมูล</button>
+                    <button type="button" class="btn btn-secondary btn-lg" onclick="showListView()"><i class="fas fa-times-circle"></i> ยกเลิก</button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Physician Alert Form View (v8.0) -->
+        <div id="physicianAlertFormView" style="display:none;">
+            <h4 id="physicianAlertFormTitle" class="mb-3 section-title"><i class="fas fa-edit text-danger"></i> แก้ไขข้อมูลรายงานแพทย์</h4>
+            <form id="physicianAlertForm">
+                <input type="hidden" id="alertRecordId" name="ID">
+                
+                <div class="card mb-3">
+                    <div class="card-header form-section-header">
+                        ข้อมูลผู้ป่วย (สำหรับอ้างอิง)
+                    </div>
+                    <div class="card-body bg-light">
+                        <div class="row">
+                            <div class="form-group col-md-6">
+                                <label>ชื่อ-สกุล</label>
+                                <input type="text" class="form-control form-control-sm" id="alertFormPatientName" readonly>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>HN</label>
+                                <input type="text" class="form-control form-control-sm" id="alertFormHN" readonly>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>เบอร์โทรศัพท์</label>
+                                <input type="text" class="form-control form-control-sm" id="alertFormPhone" readonly>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="form-group col-md-6">
+                                <label>DX</label>
+                                <input type="text" class="form-control form-control-sm" id="alertFormDX" readonly>
+                            </div>
+                            <!-- [MOVED & RENAMED] Changed from Physician to Surgery -->
+                            <div class="form-group col-md-6">
+                                <label>การผ่าตัด</label>
+                                <input type="text" class="form-control form-control-sm" id="alertFormSurgery" readonly>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <!-- [MOVED] Physician moved here -->
+                            <div class="form-group col-md-4">
+                                <label>แพทย์เจ้าของไข้</label>
+                                <input type="text" class="form-control form-control-sm" id="alertFormPhysician" readonly>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>วันที่ผ่าตัด</label>
+                                <input type="text" class="form-control form-control-sm" id="alertFormSurgeryDate" readonly>
+                            </div>
+                            <!-- [MOVED UP] Follow-up date moved here -->
+                            <div class="form-group col-md-4">
+                                <label>วันที่ติดตามเยี่ยม (ล่าสุด)</label>
+                                <input type="text" class="form-control form-control-sm" id="alertFormFollowUpDate" readonly>
+                            </div>
+                        </div>
+                         <div class="row">
+                            <div class="form-group col-md-4">
+                                <label>ครบกำหนด(วัน) (ล่าสุด)</label>
+                                <input type="text" class="form-control form-control-sm" id="alertFormDueDate" readonly>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>Functional Class (ล่าสุด)</label>
+                                <input type="text" class="form-control form-control-sm" id="alertFormFC" readonly>
+                            </div>
+                            <!-- [MOVED UP] Follower moved here -->
+                            <div class="form-group col-md-4">
+                                <label>ผู้ติดตาม (ล่าสุด)</label>
+                                <input type="text" class="form-control form-control-sm" id="alertFormFollower" readonly>
+                            </div>
+                        </div>
+                        <!-- [UPDATED v8.1] Readonly original summary -->
+                        <div class="form-group">
+                            <label>สรุปผลการติดตาม (ล่าสุดจากระบบ)</label>
+                            <textarea class="form-control form-control-sm" id="alertFormSummary" rows="2" readonly></textarea>
+                        </div>
+
+                        <!-- === [START NEW] Collapsible Past Follow-up Section === -->
+                        <div class="form-group mt-2">
+                            <a href="#pastFollowUpCollapse" data-toggle="collapse" role="button" aria-expanded="false" aria-controls="pastFollowUpCollapse" class="text-info font-weight-bold" style="text-decoration: none;">
+                                <i class="fas fa-history"></i> แสดง/ซ่อน ข้อมูลติดตามเยี่ยมย้อนหลัง <i class="fas fa-chevron-down fa-xs"></i>
+                            </a>
+                        </div>
+                        
+                        <div class="collapse" id="pastFollowUpCollapse">
+                            <div class="card card-body p-3" style="background-color: #f0f8ff; border: 1px solid #cce5ff; border-radius: 5px; font-size: 0.9em;">
+                                <ul class="nav nav-tabs nav-fill mb-3" id="pastFollowUpTabsContainer" role="tablist">
+                                    <!-- Tabs will be dynamically inserted here by JavaScript -->
+                                </ul>
+                                <div class="tab-content p-2" id="pastFollowUpTabContentContainer">
+                                    <!-- Tab content will be dynamically inserted here by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                        <!-- === [END NEW] === -->
+
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header form-section-header">
+                        ข้อมูลรูปภาพและการแจ้งเตือน (สำหรับแก้ไข กรณีรายงานย้อนหลังหรือไม่ได้ใช้ข้อมูลล่าสุด)
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- [ADDED v8.3] Editable follow-up fields -->
+                        <!-- [UPDATED v8.4.1] Added Clear button -->
+                        <div class="row">
+                            <div class="form-group col-md-6">
+                                <button type="button" id="pullLatestFollowUpBtn" class="btn btn-outline-success btn-block"><i class="fas fa-download"></i> ดึงข้อมูลติดตามล่าสุด (เพื่อแก้ไข)</button>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <button type="button" id="clearPulledDataBtn" class="btn btn-outline-danger btn-block"><i class="fas fa-eraser"></i> เคลียร์ข้อมูลที่ดึงมา</button>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="form-group col-md-6">
+                                <label for="alertFormOverrideDate">วันที่ติดตามเยี่ยม (สำหรับรายงาน)</label>
+                                <input type="date" class="form-control form-control-sm" id="alertFormOverrideDate" name="รายงานแพทย์_วันที่ติดตาม">
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="alertFormOverrideDueDate">ครบกำหนด(วัน) (สำหรับรายงาน)</label>
+                                <input type="text" class="form-control form-control-sm" id="alertFormOverrideDueDate" name="รายงานแพทย์_ครบกำหนด">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="form-group col-md-6">
+                                <label for="alertFormOverrideFC">Functional Class (สำหรับรายงาน)</label>
+                                <!-- Re-using the same options from the main form's FU tabs -->
+                                <select class="form-control form-control-sm" id="alertFormOverrideFC" name="รายงานแพทย์_FC">
+                                    <option value="">-- เลือก --</option>
+                                    <option value="-">-</option>
+                                    <option value="I">I</option>
+                                    <option value="II">II</option>
+                                    <option value="III">III</option>
+                                    <option value="IV">IV</option>
+                                    <option value="V">V</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="alertFormOverrideFollower">ผู้ติดตาม (สำหรับรายงาน)</label>
+                                <input type="text" class="form-control form-control-sm" id="alertFormOverrideFollower" name="รายงานแพทย์_ผู้ติดตาม">
+                            </div>
+                        </div>
+                        
+                        <!-- [MOVED & UPDATED v8.4] Editable summary for physician report -->
+                        <div class="form-group">
+                            <label for="alertFormOverrideSummary">สรุปผลการติดตาม (สำหรับรายงาน)</label>
+                            <textarea class="form-control form-control-sm" id="alertFormOverrideSummary" name="รายงานแพทย์_สรุปผล" rows="3"></textarea>
+                        </div>
+                        <!-- End [UPDATED v8.4] -->
+                        
+                        <!-- End [ADDED v8.3] -->
+
+                        <hr>
+
+                        <!-- === [NEW v8.6] ADDED SECTION FOR SPECIFIC DUE DATE PULL === -->
+                        <div class="bg-light p-3 border rounded mb-3">
+                            <i class="fas fa-images"></i> <label class="font-weight-bold">ดึงข้อมูลลิ้งค์รูปภาพอัตโนมัติ  จาก Google Form (กรณีกำหนดวันเอง)</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control form-control-sm" id="alertFormSpecificDueDate" placeholder="ระบุตัวเลขครบกำหนดวันติดตามเยี่ยม (เช่น 1, 2, 7, 8)">
+                                <div class="input-group-append">
+                                    <button type="button" id="pullSpecificImageLinksBtn" class="btn btn-outline-info btn-sm"><i class="fas fa-search"></i> ดึงข้อมูล</button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- === END [NEW v8.6] === -->
+                        
+                        <div class="form-group text-center">
+                            <button type="button" id="pullImageLinksBtn" class="btn btn-info btn-block"><i class="fas fa-images"></i> ดึงข้อมูลลิ้งค์รูปภาพอัตโนมัติ จาก Google Form (ครบกำหนดวันติดตามเยี่ยมล่าสุด) </button>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="form-group col-md-6">
+                                <label for="alertFormImgChest">ลิ้งค์รูปภาพ บริเวณหน้าอก</label>
+                                <input type="text" class="form-control form-control-sm" id="alertFormImgChest" name="ลิ้งค์รูปภาพบริเวณหน้าอก">
+                                <!-- [NEW] Image Preview -->
+                                <div id="previewContainerImgChest" class="image-preview-container" style="display: none;">
+                                    <img id="previewImgChest" src="" alt="Image Preview" class="image-preview">
+                                </div>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="alertFormImgArmL">ลิ้งค์รูปภาพ บริเวณแขนซ้าย</label>
+                                <input type="text" class="form-control form-control-sm" id="alertFormImgArmL" name="ลิ้งค์รูปภาพบริเวณแขนซ้าย">
+                                <!-- [NEW] Image Preview -->
+                                <div id="previewContainerImgArmL" class="image-preview-container" style="display: none;">
+                                    <img id="previewImgArmL" src="" alt="Image Preview" class="image-preview">
+                                </div>
+                            </div>
+                        </div>
+                         <div class="row">
+                            <div class="form-group col-md-6">
+                                <label for="alertFormImgLegR">ลิ้งค์รูปภาพ บริเวณขาขวา</label>
+                                <input type="text" class="form-control form-control-sm" id="alertFormImgLegR" name="ลิ้งค์รูปภาพบริเวณขาขวา">
+                                <!-- [NEW] Image Preview -->
+                                <div id="previewContainerImgLegR" class="image-preview-container" style="display: none;">
+                                    <img id="previewImgLegR" src="" alt="Image Preview" class="image-preview">
+                                </div>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="alertFormImgLegL">ลิ้งค์รูปภาพ บริเวณขาซ้าย</label>
+                                <input type="text" class="form-control form-control-sm" id="alertFormImgLegL" name="ลิ้งค์รูปภาพบริเวณขาซ้าย">
+                                <!-- [NEW] Image Preview -->
+                                <div id="previewContainerImgLegL" class="image-preview-container" style="display: none;">
+                                    <img id="previewImgLegL" src="" alt="Image Preview" class="image-preview">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="alertFormImgAdd">ลิ้งค์รูปภาพเพิ่มเติม</label>
+                            <input type="text" class="form-control form-control-sm" id="alertFormImgAdd" name="ลิ้งค์รูปภาพเพิ่มเติม">
+                            <!-- [NEW] Image Preview -->
+                            <div id="previewContainerImgAdd" class="image-preview-container" style="display: none;">
+                                <img id="previewImgAdd" src="" alt="Image Preview" class="image-preview">
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="form-group text-center bg-light p-3 border rounded">
+                             <div class="custom-control custom-checkbox custom-control-lg">
+                                <input type="checkbox" class="custom-control-input" id="sendAlertCheckbox" name="ส่งแจ้งเตือน">
+                                <label class="custom-control-label text-danger font-weight-bold" for="sendAlertCheckbox">ส่งแจ้งเตือน / รายการนี้</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 text-center">
+                    <button type="submit" class="btn btn-primary btn-lg mr-2"><i class="fas fa-save"></i> บันทึกข้อมูล</button>
+                    <button type="button" class="btn btn-secondary btn-lg" onclick="showPhysicianAlertView()"><i class="fas fa-times-circle"></i> ยกเลิก</button>
+                </div>
+            </form>
+        </div>
+
+
+        <!-- Reports View (มุมมองรายงาน) -->
+        <div id="reportsView" style="display:none;">
+            <h4 class="mb-3 section-title">รายงานและสถิติ</h4>
+            
+            <ul class="nav nav-tabs" id="reportTab" role="tablist">
+              <li class="nav-item" role="presentation">
+                <a class="nav-link active" id="thaicoc-tab" data-toggle="tab" href="#thaicocReportTab" role="tab" aria-controls="thaicocReportTab" aria-selected="true"><i class="fas fa-paper-plane"></i> สถิติส่ง ThaiCOC</a>
+              </li>
+              <li class="nav-item" role="presentation">
+                <a class="nav-link" id="physician-tab" data-toggle="tab" href="#physicianReportTab" role="tab" aria-controls="physicianReportTab" aria-selected="false"><i class="fas fa-user-md"></i> สถิติรายแพทย์</a>
+              </li>
+              <li class="nav-item" role="presentation">
+                <a class="nav-link" id="diagnosis-tab" data-toggle="tab" href="#diagnosisReportTab" role="tab" aria-controls="diagnosisReportTab" aria-selected="false"><i class="fas fa-stethoscope"></i> สถิติรายโรค (Diagnosis)</a>
+              </li>
+              <li class="nav-item" role="presentation">
+                <a class="nav-link" id="summary28day-tab" data-toggle="tab" href="#summary28dayReportTab" role="tab" aria-controls="summary28dayReportTab" aria-selected="false"><i class="fas fa-file-medical-alt"></i> สรุปผล 28 วัน</a>
+              </li>
+               <li class="nav-item" role="presentation">
+                <a class="nav-link" id="summary90day-tab" data-toggle="tab" href="#summary90dayReportTab" role="tab" aria-controls="summary90dayReportTab" aria-selected="false"><i class="fas fa-file-signature"></i> สรุปผล 90 วัน</a>
+              </li>
+              <li class="nav-item" role="presentation">
+                <a class="nav-link" id="closed-cases-tab" data-toggle="tab" href="#closedCasesReportTab" role="tab" aria-controls="closedCasesReportTab" aria-selected="false"><i class="fas fa-folder-minus"></i> สถิติผู้ป่วยปิดเคส</a>
+              </li>
+            </ul>
+
+            <div class="tab-content" id="reportTabContent">
+              <!-- 1. ThaiCOC Report Tab -->
+              <div class="tab-pane fade show active" id="thaicocReportTab" role="tabpanel" aria-labelledby="thaicoc-tab">
+                  <div class="card mt-3">
+                      <div class="card-body">
+                          <div class="form-row align-items-end">
+                              <div class="form-group col-md-4">
+                                  <label for="thaicocMonthFilter">เลือกเดือน</label>
+                                  <input type="month" class="form-control" id="thaicocMonthFilter">
+                              </div>
+                              <div class="form-group col-md-2">
+                                  <button class="btn btn-primary" id="generateThaiCocReportBtn"><i class="fas fa-search"></i> แสดงรายงาน</button>
+                              </div>
+                          </div>
+                          <hr>
+                          <div id="thaicocReportActions" class="mb-3" style="display: none;">
+                              <button class="btn btn-sm btn-outline-success" onclick="exportReport('xlsx', 'thaicoc')"><i class="fas fa-file-excel"></i> Export XLSX</button>
+                              <button class="btn btn-sm btn-outline-secondary" onclick="exportReport('csv', 'thaicoc')"><i class="fas fa-file-csv"></i> Export CSV</button>
+                              <button class="btn btn-sm btn-outline-primary" onclick="printReport('thaicocReportResult', 'รายงานสถิติส่ง ThaiCOC')"><i class="fas fa-print"></i> พิมพ์</button>
+                          </div>
+                          <h5 class="mt-3">ผลลัพธ์: <span id="thaicocReportTitle" class="text-success"></span></h5>
+                          <div id="thaicocReportResult" class="report-container table-responsive"></div>
+                      </div>
+                  </div>
+              </div>
+
+              <!-- 2. Physician Report Tab -->
+              <div class="tab-pane fade" id="physicianReportTab" role="tabpanel" aria-labelledby="physician-tab">
+                  <div class="card mt-3">
+                      <div class="card-body">
+                          <div class="form-row align-items-end">
+                              <div class="form-group col-md-4">
+                                  <label for="physicianReportMonthFilter">เลือกเดือน (อ้างอิงจากวันกลับบ้าน)</label>
+                                  <input type="month" class="form-control" id="physicianReportMonthFilter">
+                              </div>
+                              <div class="form-group col-md-4">
+                                  <label for="physicianReportNameFilter">เลือกแพทย์</label>
+                                  <select id="physicianReportNameFilter" class="form-control">
+                                      <option value="all">แพทย์ทุกคน</option>
+                                  </select>
+                              </div>
+                              <div class="form-group col-md-2">
+                                  <button class="btn btn-primary" id="generatePhysicianReportBtn"><i class="fas fa-search"></i> แสดงรายงาน</button>
+                              </div>
+                          </div>
+                          <hr>
+                           <div id="physicianReportActions" class="mb-3" style="display: none;">
+                              <button class="btn btn-sm btn-outline-success" onclick="exportReport('xlsx', 'physician')"><i class="fas fa-file-excel"></i> Export XLSX</button>
+                              <button class="btn btn-sm btn-outline-secondary" onclick="exportReport('csv', 'physician')"><i class="fas fa-file-csv"></i> Export CSV</button>
+                              <button class="btn btn-sm btn-outline-primary" onclick="printReport('physicianReportResult', 'รายงานสถิติรายแพทย์')"><i class="fas fa-print"></i> พิมพ์</button>
+                          </div>
+                          <h5 class="mt-3">ผลลัพธ์: <span id="physicianReportTitle" class="text-success"></span></h5>
+                          <div id="physicianReportResult" class="report-container table-responsive"></div>
+                      </div>
+                  </div>
+              </div>
+
+              <!-- 3. Diagnosis Report Tab -->
+              <div class="tab-pane fade" id="diagnosisReportTab" role="tabpanel" aria-labelledby="diagnosis-tab">
+                   <div class="card mt-3">
+                      <div class="card-body">
+                          <div class="form-row align-items-end">
+                              <div class="form-group col-md-4">
+                                  <label for="diagReportMonthFilter">เลือกเดือน (อ้างอิงจากวันกลับบ้าน)</label>
+                                  <input type="month" class="form-control" id="diagReportMonthFilter">
+                              </div>
+                              <div class="form-group col-md-4">
+                                  <label for="diagReportPhysicianFilter">เลือกแพทย์</label>
+                                  <select id="diagReportPhysicianFilter" class="form-control">
+                                      <option value="all">แพทย์ทุกคน</option>
+                                  </select>
+                              </div>
+                              <div class="form-group col-md-2">
+                                  <button class="btn btn-primary" id="generateDiagReportBtn"><i class="fas fa-search"></i> แสดงรายงาน</button>
+                              </div>
+                          </div>
+                          <hr>
+                          <div id="diagReportActions" class="mb-3" style="display: none;">
+                              <button class="btn btn-sm btn-outline-success" onclick="exportReport('xlsx', 'diagnosis')"><i class="fas fa-file-excel"></i> Export XLSX</button>
+                              <button class="btn btn-sm btn-outline-secondary" onclick="exportReport('csv', 'diagnosis')"><i class="fas fa-file-csv"></i> Export CSV</button>
+                              <button class="btn btn-sm btn-outline-primary" onclick="printReport('diagReportResult', 'รายงานสถิติรายโรค (Diagnosis)')"><i class="fas fa-print"></i> พิมพ์</button>
+                          </div>
+                          <h5 class="mt-3">ผลลัพธ์: <span id="diagReportTitle" class="text-success"></span></h5>
+                          <div id="diagReportResult" class="report-container"></div>
+                      </div>
+                  </div>
+              </div>
+
+              <!-- 4. 28-Day Summary Report Tab -->
+              <div class="tab-pane fade" id="summary28dayReportTab" role="tabpanel" aria-labelledby="summary28day-tab">
+                   <div class="card mt-3">
+                      <div class="card-body">
+                          <div class="form-row align-items-end">
+                              <div class="form-group col-md-4">
+                                  <label for="summary28dayMonthFilter">เลือกเดือน (อ้างอิงจากวันครบกำหนด)</label>
+                                  <input type="month" class="form-control" id="summary28dayMonthFilter">
+                              </div>
+                              <div class="form-group col-md-2">
+                                  <button class="btn btn-primary" id="generateSummary28DayReportBtn"><i class="fas fa-search"></i> แสดงรายงาน</button>
+                              </div>
+                          </div>
+                          <hr>
+                          <h5 class="mt-3">ผลลัพธ์: <span id="summary28dayReportTitle" class="text-primary"></span></h5>
+                          <div id="summary28dayReportResult" class="report-container"></div>
+                      </div>
+                  </div>
+              </div>
+
+               <!-- 5. 90-Day Summary Report Tab -->
+              <div class="tab-pane fade" id="summary90dayReportTab" role="tabpanel" aria-labelledby="summary90day-tab">
+                   <div class="card mt-3">
+                      <div class="card-body">
+                          <div class="form-row align-items-end">
+                              <div class="form-group col-md-4">
+                                  <label for="summary90dayMonthFilter">เลือกเดือน (อ้างอิงจากวันครบกำหนด)</label>
+                                  <input type="month" class="form-control" id="summary90dayMonthFilter">
+                              </div>
+                              <div class="form-group col-md-2">
+                                  <button class="btn btn-primary" id="generateSummary90DayReportBtn"><i class="fas fa-search"></i> แสดงรายงาน</button>
+                              </div>
+                          </div>
+                          <hr>
+                          <h5 class="mt-3">ผลลัพธ์: <span id="summary90dayReportTitle" class="text-primary"></span></h5>
+                          <div id="summary90dayReportResult" class="report-container"></div>
+                      </div>
+                  </div>
+              </div>
+
+              <!-- 6. Closed Cases Report Tab -->
+              <div class="tab-pane fade" id="closedCasesReportTab" role="tabpanel" aria-labelledby="closed-cases-tab">
+                   <div class="card mt-3">
+                      <div class="card-body">
+                          <div class="form-row align-items-end">
+                              <div class="form-group col-md-4">
+                                  <label for="closedCasesMonthFilter">เลือกเดือน (อ้างอิงจากวันที่ปิดเคส)</label>
+                                  <input type="month" class="form-control" id="closedCasesMonthFilter">
+                              </div>
+                              <div class="form-group col-md-2">
+                                  <button class="btn btn-primary" id="generateClosedCasesReportBtn"><i class="fas fa-search"></i> แสดงรายงาน</button>
+                              </div>
+                          </div>
+                          <hr>
+                          <h5 class="mt-3">ผลลัพธ์: <span id="closedCasesReportTitle" class="text-primary"></span></h5>
+                          <div id="closedCasesReportResult" class="report-container table-responsive"></div>
+                      </div>
+                  </div>
+              </div>
+
+            </div>
+        </div>
+
+    </div> <!-- /container -->
+
+    <!-- Modal สำหรับบันทึกสรุป 28/90 วัน -->
+    <div class="modal fade" id="summaryModal" tabindex="-1" aria-labelledby="summaryModalTitle" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="summaryModalTitle">บันทึกสรุปผล</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <form id="summaryForm">
+              <input type="hidden" id="summaryPatientId">
+              <input type="hidden" id="summaryPeriod"> <!-- '28' or '90' -->
+              <p><strong>ผู้ป่วย:</strong> <span id="summaryPatientName" class="text-success font-weight-bold"></span></p>
+              <div class="form-group">
+                <label for="summaryStatus">ผลการประเมิน <span class="text-danger">*</span></label>
+                <select class="form-control" id="summaryStatus" required>
+                  <option value="">-- เลือกสถานะ --</option>
+                  <option value="ปกติ">ปกติ</option>
+                  <option value="ไม่ปกติ">ไม่ปกติ</option>
+                  <!-- <option value="ปิดเคส" class="text-warning font-weight-bold">ปิดเคส</option> -->
+                  <option value="เสียชีวิต" class="text-danger font-weight-bold">เสียชีวิต</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="summaryDetails">รายละเอียดเพิ่มเติม</label>
+                <textarea class="form-control" id="summaryDetails" rows="4"></textarea>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">ยกเลิก</button>
+            <button type="button" class="btn btn-primary" id="saveSummaryBtn"><i class="fas fa-save"></i> บันทึก</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal สำหรับสรุปปิดเคส -->
+    <div class="modal fade" id="closingSummaryModal" tabindex="-1" aria-labelledby="closingModalTitle" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header bg-warning text-dark">
+            <h5 class="modal-title" id="closingModalTitle">สรุปและปิดเคส</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <form id="closingSummaryForm">
+              <input type="hidden" id="closingPatientId">
+              <input type="hidden" id="closingModalOrigin">
+              <p><strong>ผู้ป่วย:</strong> <span id="closingPatientName" class="text-success font-weight-bold"></span></p>
+              <div class="form-group">
+                <label for="closingSummaryDetails">กรุณาระบุเหตุผลและรายละเอียดการปิดเคส <span class="text-danger">*</span></label>
+                <textarea class="form-control" id="closingSummaryDetails" rows="4" required></textarea>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">ยกเลิก</button>
+            <button type="button" class="btn btn-warning" id="saveClosingSummaryBtn"><i class="fas fa-folder-minus"></i> ยืนยันข้อมูล</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- === [NEW v8.7] Modal สำหรับตั้งค่า Case Close === -->
+    <div class="modal fade" id="caseCloseModal" tabindex="-1" aria-labelledby="caseCloseModalTitle" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header bg-light">
+            <h5 class="modal-title" id="caseCloseModalTitle"><i class="fas fa-tasks-alt"></i> ตั้งค่าการปิดเคสอัตโนมัติ</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <!-- [MODIFIED v8.8] Updated help text to reflect partial match -->
+            <div class="alert alert-info" role="alert">
+                <i class="fas fa-info-circle"></i> <strong>คำอธิบาย:</strong> เมื่อบันทึก "สรุปผล 28 วัน" หากข้อมูล <strong>Diax</strong> <em>หรือ</em> <strong>การผ่าตัด</strong> ของผู้ป่วย ตรงกับรายการใดรายการหนึ่งในตารางนี้ ระบบจะทำการปิดเคสผู้ป่วยรายนั้นอัตโนมัติ และใส่รายละเอียดการปิดเคสเป็น "-"<br>(ระบบจะตรวจสอบว่าข้อความของผู้ป่วยมีส่วนใดส่วนหนึ่งตรงกับที่ตั้งค่าไว้ เช่น ตั้งค่า "Thoracotomy" จะตรงกับ "Left Thoracotomy" หรือ "thoracotomy Rt upper lobe lobectomy")
+            </div>
+            
+            <!-- Form for Add/Edit -->
+            <form id="caseCloseForm" class="mb-3 p-3 border rounded bg-light">
+                <input type="hidden" id="caseCloseRowIndex">
+                <div class="form-row">
+                    <div class="form-group col-md-5">
+                        <label for="caseCloseDiax" class="font-weight-bold">Diax</label>
+                        <input type="text" class="form-control form-control-sm" id="caseCloseDiax" placeholder="กรอกค่า Diax (ถ้ามี)">
+                    </div>
+                    <div class="form-group col-md-5">
+                        <label for="caseCloseSurgery" class="font-weight-bold">การผ่าตัด</label>
+                        <input type="text" class="form-control form-control-sm" id="caseCloseSurgery" placeholder="กรอกค่า การผ่าตัด (ถ้ามี)">
+                    </div>
+                    <div class="form-group col-md-2 d-flex align-items-end">
+                        <button type="button" class="btn btn-sm btn-success btn-block" id="saveCaseCloseItemBtn"><i class="fas fa-save"></i> บันทึก</button>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col-md-10">
+                        <small class="form-text text-muted">*อย่างน้อย 1 ช่องต้องมีข้อมูล | หากมีทั้ง 2 ช่อง ผู้ป่วยต้องตรงเงื่อนไขเพียงช่องใดช่องหนึ่ง</small>
+                    </div>
+                     <div class="col-md-2 d-flex align-items-end">
+                         <button type="button" class="btn btn-sm btn-outline-secondary btn-block" id="clearCaseCloseFormBtn"><i class="fas fa-eraser"></i> ล้างฟอร์ม</button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Table of existing items -->
+            <h6 class="mt-4">รายการที่ตั้งค่าไว้</h6>
+            <div class="table-wrapper">
+                <table class="table table-sm table-hover table-bordered">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Diax</th>
+                            <th>การผ่าตัด</th>
+                            <th style="width: 120px;" class="text-center">การดำเนินการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="caseCloseTableBody">
+                        <!-- Data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">ปิดหน้าต่าง</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- === [END NEW v8.7] === -->
+
+
+    <footer class="footer mt-auto py-3" style="background-color: #FFF0F5;"> 
+        <div class="container text-center">
+            <span class="text-muted">หอผู้ป่วยศัลยกรรมเฉพาะทาง โรงพยาบาลสวรรค์ประชารักษ์ &copy; 2024-2025</span>
+        </div>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js" xintegrity="sha384-IQsoLXl5PILFhosVNubq5LC7Qb9DXgDA9i+tQ8Zj3iwWAwPtgFTxbJ8NT4GN1R8p" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" xintegrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- === [NEW] Chart.js Library === -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <!-- === [END NEW] === -->
+
+    <!-- Libraries for Exporting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <script src="js/config.js"></script>`n    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>`n    <script src="js/supabase-client.js"></script>`n    <script src="js/app.js"></script>
+</body>
+</html>
