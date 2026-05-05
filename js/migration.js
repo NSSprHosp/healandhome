@@ -46,8 +46,16 @@ $(document).ready(function() {
             tableName: 'patients',
             mapFunction: (row) => {
                 const mapped = {};
+                const excludeCols = [
+                    'ID', 
+                    'ครบกำหนดติดตามล่าสุด', 
+                    'วันที่ตรวจเยี่ยมล่าสุด', 
+                    'FC ล่าสุด', 
+                    'ข้อมูลติดตามล่าสุด', 
+                    'ผู้ติดตามล่าสุด'
+                ];
                 for (let k in row) {
-                    if (k.trim() !== '' && k !== 'ID') { // Skip ID to let Supabase auto-increment
+                    if (k.trim() !== '' && !excludeCols.includes(k.trim())) { // Skip ID and calculated summary columns
                         let val = row[k];
                         if (val === '' || val === undefined || val === null) {
                             val = null;
