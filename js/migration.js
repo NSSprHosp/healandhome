@@ -61,20 +61,42 @@ $(document).ready(function() {
                     'ข้อมูลติดตามล่าสุด', 
                     'ผู้ติดตามล่าสุด'
                 ];
+
+                // PostgreSQL automatically truncates column names to 63 bytes.
+                // Since Thai characters are 3 bytes each, names like 'ติดตามครบ14วัน_ผู้ติดตาม' (66 bytes)
+                // get truncated to 'ติดตามครบ14วัน_ผู้ติดตา' (63 bytes) in the database.
+                // We must emulate this truncation exactly to match the schema.
+                const getPgColumnName = (colName) => {
+                    const encoder = new TextEncoder();
+                    const bytes = encoder.encode(colName);
+                    if (bytes.length <= 63) return colName;
+                    
+                    let truncated = bytes.slice(0, 63);
+                    const decoder = new TextDecoder('utf-8', { fatal: false });
+                    let str = decoder.decode(truncated);
+                    // Remove the replacement character if we cut a 3-byte char in half
+                    while (str.includes('\uFFFD')) {
+                        truncated = truncated.slice(0, -1);
+                        str = decoder.decode(truncated);
+                    }
+                    return str;
+                };
+
                 for (let k in row) {
-                    const cleanKey = k.replace(/[\r\n\t\u200B-\u200D\uFEFF]/g, '').trim();
-                    if (cleanKey !== '' && !excludeCols.includes(cleanKey)) { // Skip ID and calculated summary columns
+                    const rawKey = k.replace(/[\r\n\t\u200B-\u200D\uFEFF]/g, '').trim();
+                    if (rawKey !== '' && !excludeCols.includes(rawKey)) {
+                        const pgKey = getPgColumnName(rawKey);
                         let val = row[k];
+                        
                         if (val === '' || val === undefined || val === null) {
                             val = null;
                         } else if (typeof val === 'string' && val.trim() === '') {
                             val = null;
                         } else {
-                            // Convert string booleans if necessary
                             if (val === 'TRUE' || val === 'true') val = true;
                             if (val === 'FALSE' || val === 'false') val = false;
                         }
-                        mapped[cleanKey] = val;
+                        mapped[pgKey] = val;
                     }
                 }
                 return mapped;
